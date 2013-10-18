@@ -88,8 +88,16 @@ class Edit:
         self.step('callback', func)
 
     def run(self, view, edit):
+        read_only = False
+        if view.is_read_only():
+            read_only = True
+            view.set_read_only(False)
+
         for step in self.steps:
             step.run(view, edit)
+
+        if read_only:
+            view.set_read_only(True)
 
     def __enter__(self):
         return self

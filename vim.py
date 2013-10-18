@@ -28,7 +28,7 @@ class VimSocket:
         threading.Thread(target=self.loop).start()
 
     def active(self):
-        return self.view.buffer_id() != 0
+        return self.view.buffer_id() != 0 and self.server.fileno() >= 0
     
     def handle(self, data):
         view = self.view
@@ -120,8 +120,9 @@ class Vim:
     )
     DEFAULT_CMD = ('vim',) + VIMRC
 
-    def __init__(self, view, cmd=None, callback=None):
+    def __init__(self, view, monitor=None, cmd=None, callback=None):
         self.view = view
+        self.monitor = monitor
         self.cmd = cmd or self.DEFAULT_CMD
         self.callback = callback
         self.proc = None
@@ -173,9 +174,10 @@ class Vim:
                 except ValueError:
                     pass
 
-                # with Edit(self.view) as edit:
-                #     edit.erase(sublime.Region(0, self.view.size()))
-                #     edit.insert(0, v.dump())
+                if self.monitor:
+                    with Edit(self.monitor) as edit:
+                        edit.erase(sublime.Region(0, self.monitor.size()))
+                        edit.insert(0, v.dump())
 
                 if self.callback:
                     self.callback(self)
@@ -199,6 +201,8 @@ class Vim:
     def close(self):
         print('ending Vim')
         self.view.close()
+        if self.monitor:
+            self.monitor.close()
         self.proc.kill()
         self.socket.close()
 

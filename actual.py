@@ -6,7 +6,7 @@ from .vim import Vim
 
 try:
     v = v.close()
-except NameError:
+except (NameError, AttributeError):
     pass
 
 
@@ -66,7 +66,16 @@ def update(vim):
 def plugin_loaded():
     global v
 
+    output = sublime.active_window().new_file()
+    output.set_read_only(True)
+    output.set_scratch(True)
+    output.set_name('Vim Monitor')
+    output.settings().set('actual_intercept', True)
+    output.settings().set('actual_mode', True)
+
     view = sublime.active_window().new_file()
+    view.set_name('Vim')
+
     view.settings().set('actual_intercept', True)
     view.settings().set('actual_mode', True)
-    v = Vim(view, callback=update)
+    v = Vim(view, monitor=output, callback=update)
