@@ -19,7 +19,7 @@ This project does not have those problems, because it IS Vim.
 Usage
 ----
 
-This plugin relies on Vim itself, and operating system features not found in Windows. Thats means it's likely to only work in Linux and OS X for the near future. It's only been tested with an unmodified copy of Vim 7.4 thus far.
+This plugin relies on Vim itself, and operating system features not found in Windows. Thats means it's likely to only work in Linux and OS X for the near future. It's only been tested with an unmodified copy of Vim 7.4 on OS X 10.8 thus far.
 
 Just clone this to `Sublime Text 3/Packages/actualvim/`
 
