@@ -4,6 +4,7 @@
 
 import sys
 import re
+import weakref
 
 def intgroups(m):
     return [int(d) for d in m.groups() if d and d.isdigit()]
@@ -11,6 +12,8 @@ def intgroups(m):
 
 class Row(object):
     def __init__(self, buf, data=None):
+        if not isinstance(buf, weakref.ProxyType):
+            buf = weakref.proxy(buf)
         self.buf = buf
         self.cols = buf.cols
         if data:
