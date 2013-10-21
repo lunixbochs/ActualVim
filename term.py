@@ -16,7 +16,7 @@ class Terminal(object):
         self.scroll = (1, rows)
         self.row = 1
         self.col = 1
-        # chars are stored at state[row][col]
+        # chars are stored at self.buf[row][col]
         self.pending = ''
         self.reset()
 

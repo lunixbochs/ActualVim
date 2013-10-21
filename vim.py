@@ -111,9 +111,11 @@ class VimSocket:
 
 
 class Vim:
+    ROWS = 24
+    COLS = 80
     VIMRC = (
         '--cmd', 'set fileformat=unix',
-        '--cmd', 'set lines=24 columns=80',
+        '--cmd', 'set lines={} columns={}'.format(ROWS, COLS),
         '--cmd', '''set statusline=%{printf(\\"%d+%d,%s,%d+%d\\",line(\\".\\"),col(\\".\\"),mode(),line(\\"v\\"),col(\\"v\\"))}''',
         '--cmd', 'set laststatus=2',
         '--cmd', 'set shortmess=aoOtTWAI',
@@ -148,7 +150,7 @@ class Vim:
         self.input = os.fdopen(master, 'wb')
 
         def pump():
-            self.tty = v = VT100(80, 24)
+            self.tty = v = VT100(self.COLS, self.ROWS)
             while True:
                 b = self.output.read(1)
                 old = v.dump()
@@ -180,6 +182,21 @@ class Vim:
                         edit.insert(0, v.dump())
                         edit.reselect(
                             lambda view: view.text_point(v.row - 1, v.col - 1))
+
+                        def update_cursor(view, edit):
+                            row, col = (self.row - 1, self.col + 1)
+                            # see if it's prompting for input
+                            if v.row == self.ROWS and v.col > 0:
+                                char = v.buf[v.row - 1][0]
+                                if char in ':/':
+                                    row, col = (v.row - 1, v.col - 1)
+                            pos = view.text_point(row, col)
+                            sel = sublime.Region(pos, pos)
+                            view.add_regions(
+                                'cursor', [sel], 'comment',
+                                '', sublime.DRAW_EMPTY,
+                            )
+                        edit.callback(update_cursor)
 
                 if self.callback:
                     self.callback(self)
