@@ -42,8 +42,12 @@ class Row(object):
         return self.data[col]
 
     def __setitem__(self, col, value):
+        dirty = False
+        if self.data[col] != value:
+            dirty = True
         self.data[col] = value
-        self.buf.dirty = True
+        if dirty:
+            self.buf.dirty = True
 
 
 class Buffer(object):
