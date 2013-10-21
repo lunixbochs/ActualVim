@@ -154,62 +154,60 @@ class Vim:
         self.input = os.fdopen(master, 'wb')
 
         def pump():
-            self.tty = v = VT100(self.cols, self.rows)
+            self.tty = v = VT100(self.cols, self.rows, callback=self._update)
             while True:
                 b = self.output.read(1)
-                old = v.dump()
                 v.append(b)
-                new = v.dump()
-                if new == old:
-                    continue
-                self.status, self.cmdline = [
-                    s.strip() for s in new.rsplit('\n')[-3:-1]
-                ]
-                try:
-                    if self.status.count('+') >= 2:
-                        pos, rest = self.status.split(',', 1)
-                        row, col = pos.split('+', 1)
-                        self.row, self.col = int(row), int(col)
-
-                        self.mode, rest = rest.split(',', 1)
-
-                        a, b = rest.split('+', 1)
-                        self.visual = (int(a), int(b))
-                    # print(self.status)
-
-                except ValueError:
-                    pass
-
-                if self.monitor:
-                    with Edit(self.monitor) as edit:
-                        edit.erase(sublime.Region(0, self.monitor.size()))
-                        edit.insert(0, v.dump())
-                        edit.reselect(
-                            lambda view: view.text_point(v.row - 1, v.col - 1))
-
-                        def update_cursor(view, edit):
-                            row, col = (self.row - 1, self.col + 1)
-                            # see if it's prompting for input
-                            if v.row == self.rows and v.col > 0:
-                                char = v.buf[v.row - 1][0]
-                                if char in ':/':
-                                    row, col = (v.row - 1, v.col - 1)
-                            pos = view.text_point(row, col)
-                            sel = sublime.Region(pos, pos)
-                            view.add_regions(
-                                'cursor', [sel], 'comment',
-                                '', sublime.DRAW_EMPTY,
-                            )
-                        edit.callback(update_cursor)
-
-                if self.callback:
-                    self.callback(self)
         threading.Thread(target=pump).start()
 
     def __serve(self):
         self.socket = VimSocket(self.view)
         self.port = self.socket.port
         self.socket.spawn()
+
+    def _update(self, v):
+        data = v.dump()
+        self.status, self.cmdline = [
+            s.strip() for s in data.rsplit('\n')[-3:-1]
+        ]
+        try:
+            if self.status.count('+') >= 2:
+                pos, rest = self.status.split(',', 1)
+                row, col = pos.split('+', 1)
+                self.row, self.col = int(row), int(col)
+
+                self.mode, rest = rest.split(',', 1)
+
+                a, b = rest.split('+', 1)
+                self.visual = (int(a), int(b))
+            # print(self.status)
+        except ValueError:
+            pass
+
+        if self.monitor:
+            with Edit(self.monitor) as edit:
+                edit.erase(sublime.Region(0, self.monitor.size()))
+                edit.insert(0, data)
+                edit.reselect(
+                    lambda view: view.text_point(v.row - 1, v.col - 1))
+
+                def update_cursor(view, edit):
+                    row, col = (self.row - 1, self.col + 1)
+                    # see if it's prompting for input
+                    if v.row == self.rows and v.col > 0:
+                        char = v.buf[v.row - 1][0]
+                        if char in ':/':
+                            row, col = (v.row - 1, v.col - 1)
+                    pos = view.text_point(row, col)
+                    sel = sublime.Region(pos, pos)
+                    view.add_regions(
+                        'cursor', [sel], 'comment',
+                        '', sublime.DRAW_EMPTY,
+                    )
+                edit.callback(update_cursor)
+
+        if self.callback:
+            self.callback(self)
 
     def send(self, b):
         # send input

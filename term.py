@@ -43,6 +43,7 @@ class Row(object):
 
     def __setitem__(self, col, value):
         self.data[col] = value
+        self.buf.dirty = True
 
 
 class Buffer(object):
@@ -50,9 +51,11 @@ class Buffer(object):
         self.rows = rows
         self.cols = cols
         self.reset()
+        self.dirty = False
 
     def reset(self):
         self.data = Row(self) * self.rows
+        self.dirty = True
 
     def __getitem__(self, row):
         return self.data[row]
@@ -91,6 +94,14 @@ class Terminal(object):
 
     def clear(self):
         self.buf.reset()
+
+    @property
+    def dirty(self):
+        return self.buf.dirty
+
+    @dirty.setter
+    def dirty(self, value):
+        self.buf.dirty = value
 
     def move(self, row=None, col=None, rel=False):
         if rel:
@@ -184,6 +195,7 @@ class Terminal(object):
             if pre == 0:
                 if i > len(data) - 8:
                     # we might need more data to complete the sequence
+                    self.notify()
                     self.pending = data[i:]
                     return
                 else:
@@ -198,6 +210,13 @@ class Terminal(object):
             else:
                 self.puts(data[i])
                 i += 1
+        self.notify()
+
+    def notify(self):
+        if self.dirty:
+            self.dirty = False
+            if self.callback:
+                self.callback(self)
 
     def dump(self):
         return ''.join(col for row in self.buf for col in row + ['\n'])
