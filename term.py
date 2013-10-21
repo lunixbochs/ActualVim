@@ -2,8 +2,8 @@
 # term.py
 # terminal buffer emulator
 
-import sys
 import re
+import sys
 import weakref
 
 def intgroups(m):
@@ -73,14 +73,11 @@ class Buffer(object):
         else:
             raise TypeError('expected list, found {}'.format(type(value)))
 
-    def swap(self, a, b):
-        if a != b:
-            d = self.data
-            d[a], d[b] = d[b], d[a]
+    def insert(self, pos):
+        self.data.insert(pos, Row(self))
 
     def __delitem__(self, row):
         del self.data[row]
-        self.data.append(Row(self))
 
 
 class Terminal(object):
@@ -134,7 +131,7 @@ class Terminal(object):
         if row < start:
             row = start
         if row > end:
-            self.del_lines(1, start-1)
+            self.del_lines(end - row, start)
             row = end
 
         self.row = row
@@ -151,13 +148,21 @@ class Terminal(object):
                 self.puts(' ')
         self.row, self.col = save
 
+    def insert_lines(self, num=1, row=None):
+        if row is None:
+            row = self.row
+
+        for i in range(num):
+            del self.buf[self.scroll[1] - 1]
+            self.buf.insert(row)
+
     def del_lines(self, num=1, row=None):
         if row is None:
             row = self.row
 
         for i in range(num):
             del self.buf[row - 1]
-            self.buf.swap(self.rows - 1, self.scroll[1] - 1)
+            self.buf.insert(self.scroll[1])
 
     def puts(self, s, move=True):
         if isinstance(s, int):
@@ -211,7 +216,7 @@ class Terminal(object):
                 else:
                     # looks like we don't know how to read this sequence
                     if self.debug:
-                        print('unknown!', repr(data[i:i+8]))
+                        print('Unknown VT100 sequence:', repr(data[i:i+8]))
                     i += 1
                     continue
             elif pre is not None:
@@ -268,6 +273,8 @@ class VT100(Terminal):
             (r'\[(\d+);(\d+)[Hf]', lambda g: self.move(g[0], g[1])),
             # set scrolling region
             (r'\[(\d+);(\d+)r', lambda g: self.set_scroll(g[0], g[1])),
+            # insert lines under cursor
+            (r'\[(\d+)L', lambda g: self.insert_lines(g[0])),
             # remove lines from cursor
             (r'\[(\d+)M', lambda g: self.del_lines(g[0])),
             # erase from cursor to end of screen
@@ -286,7 +293,8 @@ class VT100(Terminal):
             ('[2J', lambda: self.clear()),
             ('[K', lambda: self.erase(
                 (self.row, self.col), (self.row + 1, self.cols))),
-            ('[M', lambda: self.del_lines(1, row=self.row + 1)),
+            ('[L', lambda: self.insert_lines(1)),
+            ('[M', lambda: self.del_lines(1)),
             # noop
             ('>', None),
             ('<', None),
