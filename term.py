@@ -5,6 +5,9 @@
 import sys
 import re
 
+def intgroups(m):
+    return [int(d) for d in m.groups() if d and d.isdigit()]
+
 
 class Terminal(object):
     ESCAPE = '\033'
@@ -24,13 +27,9 @@ class Terminal(object):
         self.buf = [[' '] * self.cols for i in range(self.rows)]
 
     def move(self, row=None, col=None, rel=False):
-        if isinstance(row, str):
-            row = int(row)
-        if isinstance(col, str):
-            col = int(col)
         if rel:
-            row = self.row + int(row or 1)
-            col = self.col + int(col or 1)
+            row = self.row + row or 1
+            col = self.col + col or 1
         else:
             if row is None:
                 row = self.row
@@ -48,8 +47,7 @@ class Terminal(object):
         if row < start:
             row = start
         if row > end:
-            del self.buf[start-1]
-            self.buf.insert(end-1, [' '] * self.cols)
+            self.del_lines(1, start-1)
             row = end
 
         self.row = row
@@ -65,6 +63,14 @@ class Terminal(object):
                 self.move(row, col)
                 self.puts(' ')
         self.row, self.col = save
+
+    def del_lines(self, num=1, row=None):
+        if row is None:
+            row = self.row
+
+        for i in range(num):
+            del self.buf[row - 1]
+            self.buf.insert(self.scroll[1] - 1, [' '] * self.cols)
 
     def puts(self, s, move=True):
         if isinstance(s, int):
@@ -167,8 +173,10 @@ class VT100(Terminal):
             (r'\[(\d+);(\d+)[Hf]', lambda g: self.move(g[0], g[1])),
             # set scrolling region
             (r'\[(\d+);(\d+)r', lambda g: self.set_scroll(g[0], g[1])),
+            # remove lines from cursor
+            (r'\[(\d+)M', lambda g: self.del_lines(g[0])),
             # erase from cursor to end of screen
-            (r'\[0\?J', lambda: self.erase(
+            (r'\[0\?J', lambda g: self.erase(
                 (self.row, self.col), (self.rows, self.cols))),
             # noop
             (r'\[\?(\d+)h', None),
@@ -183,6 +191,7 @@ class VT100(Terminal):
             ('[2J', lambda: self.reset()),
             ('[K', lambda: self.erase(
                 (self.row, self.col), (self.row + 1, self.cols))),
+            ('[M', lambda: self.del_lines(1, row=self.row + 1)),
             # noop
             ('>', None),
             ('<', None),
@@ -224,12 +233,12 @@ class VT100(Terminal):
         for r, func in self.control:
             m = r.match(context)
             if m:
-                return 1 + call(func, m.group(), m.groups())
+                return 1 + call(func, m.group(), intgroups(m))
 
         return 0
 
     def set_scroll(self, start, end):
-        self.scroll = (int(start), int(end))
+        self.scroll = (start, end)
 
 if __name__ == '__main__':
     def debug():
