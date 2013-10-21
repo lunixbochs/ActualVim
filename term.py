@@ -73,11 +73,14 @@ class Buffer(object):
         else:
             raise TypeError('expected list, found {}'.format(type(value)))
 
-    def insert(self, pos, data):
-        self.data.insert(pos, data)
+    def swap(self, a, b):
+        if a != b:
+            d = self.data
+            d[a], d[b] = d[b], d[a]
 
     def __delitem__(self, row):
         del self.data[row]
+        self.data.append(Row(self))
 
 
 class Terminal(object):
@@ -154,7 +157,7 @@ class Terminal(object):
 
         for i in range(num):
             del self.buf[row - 1]
-            self.buf.insert(self.scroll[1] - 1, [' '] * self.cols)
+            self.buf.swap(self.rows - 1, self.scroll[1] - 1)
 
     def puts(self, s, move=True):
         if isinstance(s, int):
