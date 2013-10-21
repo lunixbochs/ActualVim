@@ -157,6 +157,9 @@ class Vim:
             self.tty = v = VT100(self.cols, self.rows, callback=self._update)
             while True:
                 b = self.output.read(1)
+                if not b:
+                    # TODO: subprocess closed tty. recover somehow?
+                    break
                 v.append(b)
         threading.Thread(target=pump).start()
 
