@@ -178,6 +178,8 @@ class Vim:
                     with Edit(self.monitor) as edit:
                         edit.erase(sublime.Region(0, self.monitor.size()))
                         edit.insert(0, v.dump())
+                        edit.reselect(
+                            lambda view: view.text_point(v.row - 1, v.col - 1))
 
                 if self.callback:
                     self.callback(self)

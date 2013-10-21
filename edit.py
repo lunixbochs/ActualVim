@@ -13,9 +13,9 @@ except AttributeError:
 def run_callback(func, *args, **kwargs):
     spec = inspect.getfullargspec(func)
     if spec.args or spec.varargs:
-        func(*args, **kwargs)
+        return func(*args, **kwargs)
     else:
-        func()
+        return func()
 
 
 class EditFuture:
@@ -86,6 +86,22 @@ class Edit:
 
     def callback(self, func):
         self.step('callback', func)
+
+    def reselect(self, pos):
+        def select(view, edit):
+            region = pos
+            if hasattr(pos, '__call__'):
+                region = run_callback(pos, view)
+
+            if isinstance(region, int):
+                region = sublime.Region(region, region)
+            elif isinstance(region, (tuple, list)):
+                region = sublime.Region(*region)
+
+            view.sel().clear()
+            view.sel().add(region)
+
+        self.callback(select)
 
     def run(self, view, edit):
         read_only = False
