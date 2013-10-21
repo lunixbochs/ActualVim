@@ -154,7 +154,7 @@ class Terminal(object):
 
         for i in range(num):
             del self.buf[self.scroll[1] - 1]
-            self.buf.insert(row)
+            self.buf.insert(row - 1)
 
     def del_lines(self, num=1, row=None):
         if row is None:
@@ -321,12 +321,10 @@ class VT100(Terminal):
         def call(func, s, groups):
             if func:
                 if self.debug:
-                    print()
                     print('<ESC "{}">'.format(s))
                 func(groups)
             else:
                 if self.debug:
-                    print()
                     print('<NOOP "{}">'.format(s))
             return len(s)
 
