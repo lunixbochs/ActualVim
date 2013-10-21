@@ -9,22 +9,88 @@ def intgroups(m):
     return [int(d) for d in m.groups() if d and d.isdigit()]
 
 
-class Terminal(object):
-    ESCAPE = '\033'
+class Row(object):
+    def __init__(self, buf, data=None):
+        self.buf = buf
+        self.cols = buf.cols
+        if data:
+            self.data = data[:]
+        else:
+            self.reset()
 
-    def __init__(self, cols, rows, debug=False):
-        self.debug = debug
-        self.cols = cols
+    def copy(self):
+        return Row(self.buf, data=self.data)
+
+    def reset(self):
+        self.data = [' ' for i in range(self.cols)]
+
+    def __add__(self, o):
+        if isinstance(o, list):
+            return self.data + o
+        elif isinstance(o, Row):
+            return self.data + o.data
+        else:
+            raise TypeError('expected int or Row, found {}'.format(type(o)))
+
+    def __mul__(self, n):
+        if isinstance(n, int):
+            return [self.copy() for i in range(n)]
+        else:
+            raise TypeError('expected int, found {}'.format(type(n)))
+
+    def __getitem__(self, col):
+        return self.data[col]
+
+    def __setitem__(self, col, value):
+        self.data[col] = value
+
+
+class Buffer(object):
+    def __init__(self, rows, cols):
         self.rows = rows
-        self.scroll = (1, rows)
-        self.row = 1
-        self.col = 1
-        # chars are stored at self.buf[row][col]
-        self.pending = ''
+        self.cols = cols
         self.reset()
 
     def reset(self):
-        self.buf = [[' '] * self.cols for i in range(self.rows)]
+        self.data = Row(self) * self.rows
+
+    def __getitem__(self, row):
+        return self.data[row]
+
+    def __setitem__(self, row, value):
+        if isinstance(value, list):
+            self.data[row] = Row(self, data=value)
+        else:
+            raise TypeError('expected list, found {}'.format(type(value)))
+
+    def insert(self, pos, data):
+        self.data.insert(pos, data)
+
+    def __delitem__(self, row):
+        del self.data[row]
+
+
+class Terminal(object):
+    ESCAPE = '\033'
+
+    def __init__(self, cols, rows, debug=False, callback=None):
+        self.debug = debug
+        self.cols = cols
+        self.rows = rows
+        self.pending = ''
+        # chars are stored at self.buf[row][col]
+        self.callback = callback
+        self.buf = Buffer(self.rows, self.cols)
+        self.reset()
+
+    def reset(self):
+        self.scroll = (1, self.rows)
+        self.row = 1
+        self.col = 1
+        self.clear()
+
+    def clear(self):
+        self.buf.reset()
 
     def move(self, row=None, col=None, rel=False):
         if rel:
@@ -188,7 +254,7 @@ class VT100(Terminal):
             ('[C', lambda: self.rel(col=1)),
             ('[D', lambda: self.rel(col=1)),
             ('[H', lambda: self.move(1, 1)),
-            ('[2J', lambda: self.reset()),
+            ('[2J', lambda: self.clear()),
             ('[K', lambda: self.erase(
                 (self.row, self.col), (self.row + 1, self.cols))),
             ('[M', lambda: self.del_lines(1, row=self.row + 1)),
