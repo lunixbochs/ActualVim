@@ -32,9 +32,28 @@ def update(vim):
     if mode in 'iR':
         return
 
-    if mode in 'Vv\x16':
+    if mode in ('V', 'v', '^V'):
         def select():
             vr, vc = vim.visual
+            sel = view.sel()
+            sel.clear()
+
+            if mode == '^V':
+                # visual block mode
+                left = min(vc, vim.col) - 1
+                right = max(vc, vim.col) - 1
+                top = min(vr, vim.row) - 1
+                bot = max(vr, vim.row) - 1
+
+                for i in range(top, bot + 1):
+                    line = view.line(view.text_point(i, 0))
+                    _, end = view.rowcol(line.b)
+                    if left <= end and right <= end:
+                        a = view.text_point(i, left)
+                        b = view.text_point(i, right)
+                        sel.add(sublime.Region(a, b))
+                return
+
             start = view.text_point(vr - 1, vc - 1)
             end = view.text_point(vim.row - 1, vim.col - 1)
             if mode == 'V':
@@ -48,8 +67,7 @@ def update(vim):
                 else:
                     start = view.line(start).a
                     end = view.line(end).b
-            sel = view.sel()
-            sel.clear()
+
             sel.add(sublime.Region(start, end))
 
         Edit.defer(view, select)
