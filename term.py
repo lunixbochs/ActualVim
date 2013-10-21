@@ -212,7 +212,7 @@ class VT100(Terminal):
                 func = wrap(func)
             self.control.append((r, func))
 
-        super(VT100, self).__init__(*args, **kwargs)
+        super(self.__class__, self).__init__(*args, **kwargs)
 
     def sequence(self, data, i):
         def call(func, s, groups):
