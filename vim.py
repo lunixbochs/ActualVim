@@ -111,22 +111,26 @@ class VimSocket:
 
 
 class Vim:
-    ROWS = 24
-    COLS = 80
-    VIMRC = (
-        '--cmd', 'set fileformat=unix',
-        '--cmd', 'set lines={} columns={}'.format(ROWS, COLS),
-        '--cmd', '''set statusline=%{printf(\\"%d+%d,%s,%d+%d\\",line(\\".\\"),col(\\".\\"),mode(),line(\\"v\\"),col(\\"v\\"))}''',
-        '--cmd', 'set laststatus=2',
-        '--cmd', 'set shortmess=aoOtTWAI',
-    )
-    DEFAULT_CMD = ('vim',) + VIMRC
+    DEFAULT_CMD = ('vim',)
 
-    def __init__(self, view, monitor=None, cmd=None, callback=None):
+    @property
+    def vimrc(self):
+        return (
+            '--cmd', 'set fileformat=unix',
+            '--cmd', 'set lines={} columns={}'.format(self.rows, self.cols),
+            '--cmd', '''set statusline=%{printf(\\"%d+%d,%s,%d+%d\\",line(\\".\\"),col(\\".\\"),mode(),line(\\"v\\"),col(\\"v\\"))}''',
+            '--cmd', 'set laststatus=2',
+            '--cmd', 'set shortmess=aoOtTWAI',
+        )
+
+    def __init__(self, view, rows=24, cols=80, monitor=None, cmd=None, callback=None):
         self.view = view
         self.monitor = monitor
+        self.rows = rows
+        self.cols = cols
         self.cmd = cmd or self.DEFAULT_CMD
         self.callback = callback
+
         self.proc = None
         self.input = None
         self.output = None
@@ -142,7 +146,7 @@ class Vim:
     def __spawn(self):
         master, slave = pty.openpty()
         devnul = open(os.devnull, 'r')
-        cmd = self.cmd + ('-nb::{}'.format(self.port),)
+        cmd = self.cmd + ('-nb::{}'.format(self.port),) + self.vimrc
         self.proc = subprocess.Popen(
             cmd, stdin=slave, stdout=slave,
             stderr=devnul, close_fds=True)
@@ -150,7 +154,7 @@ class Vim:
         self.input = os.fdopen(master, 'wb')
 
         def pump():
-            self.tty = v = VT100(self.COLS, self.ROWS)
+            self.tty = v = VT100(self.cols, self.rows)
             while True:
                 b = self.output.read(1)
                 old = v.dump()
@@ -186,7 +190,7 @@ class Vim:
                         def update_cursor(view, edit):
                             row, col = (self.row - 1, self.col + 1)
                             # see if it's prompting for input
-                            if v.row == self.ROWS and v.col > 0:
+                            if v.row == self.rows and v.col > 0:
                                 char = v.buf[v.row - 1][0]
                                 if char in ':/':
                                     row, col = (v.row - 1, v.col - 1)
