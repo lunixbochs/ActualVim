@@ -257,6 +257,14 @@ class VT100(Terminal):
 
     @classmethod
     def map(cls, key):
+        if '+' in key and key != '+':
+            mods, key = key.rsplit('+', 1)
+            mods = mods.split('+')
+            if mods == ['ctrl']:
+                b = ord(key)
+                if b >= 63 and b < 96:
+                    return chr((b - 64) % 128)
+
         return cls.KEYMAP.get(key, key)
 
     def __init__(self, *args, **kwargs):
