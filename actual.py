@@ -53,6 +53,12 @@ def update(vim):
     mode = vim.mode
     view = vim.view
     tty = vim.tty
+
+    if vim.cmdline:
+        view.set_status('actual', vim.cmdline)
+    else:
+        view.erase_status('actual')
+
     if mode in 'iR':
         return
 
