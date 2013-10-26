@@ -41,6 +41,9 @@ class Row(object):
         else:
             raise TypeError('expected int, found {}'.format(type(n)))
 
+    def __iter__(self):
+        return iter(self.data)
+
     def __getitem__(self, col):
         return self.data[col]
 
@@ -72,6 +75,9 @@ class Buffer(object):
             self.data[row] = Row(self, data=value)
         else:
             raise TypeError('expected list, found {}'.format(type(value)))
+
+    def __iter__(self):
+        return iter(self.data)
 
     def insert(self, pos):
         self.data.insert(pos, Row(self))
