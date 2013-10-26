@@ -85,14 +85,27 @@ def update(vim):
             top = min(vr, vim.row) - 1
             bot = max(vr, vim.row) - 1
 
-            for i in range(top, bot + 1):
-                line = view.line(view.text_point(i, 0))
-                if mode == 'V':
-                    # visual line mode
-                    sel.add(sublime.Region(line.a, line.b))
+            start = view.text_point(vr - 1, vc - 1)
+            end = view.text_point(vim.row - 1, vim.col - 1)
+            if mode == 'V':
+                # visual line mode
+                if start == end:
+                    pos = view.line(start)
+                    start, end = pos.a, pos.b
+                elif start > end:
+                    start = view.line(start).b
+                    end = view.line(end).a
                 else:
+                    start = view.line(start).a
+                    end = view.line(end).b
+                sel.add(sublime.Region(start, end))
+            elif mode == 'v':
+                sel.add(sublime.Region(start, end))
+            elif mode == '^V':
+                for i in range(top, bot + 1):
+                    line = view.line(view.text_point(i, 0))
                     _, end = view.rowcol(line.b)
-                    if left <= end and right <= end:
+                    if left <= end:
                         a = view.text_point(i, left)
                         b = view.text_point(i, right)
                         sel.add(sublime.Region(a, b))
