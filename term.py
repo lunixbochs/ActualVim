@@ -4,7 +4,11 @@
 
 import re
 import sys
+import threading
+import time
 import weakref
+from queue import Queue, Empty
+
 
 def intgroups(m):
     return [int(d) for d in m.groups() if d and d.isdigit()]
@@ -92,15 +96,19 @@ class Buffer(object):
 class Terminal(object):
     ESCAPE = '\033'
 
-    def __init__(self, cols, rows, debug=False, callback=None):
+    def __init__(self, cols, rows, debug=False, callback=None, fps=60):
         self.debug = debug
         self.cols = cols
         self.rows = rows
         self.pending = ''
         # chars are stored at self.buf[row][col]
         self.callback = callback
+        self.fps = fps
+        self.frame = 1.0 / fps
         self.buf = Buffer(self.rows, self.cols)
         self.reset()
+        self.smooth_lock = threading.RLock()
+        self.smooth_queue = Queue()
 
     def reset(self):
         self.scroll = (1, self.rows)
@@ -219,7 +227,6 @@ class Terminal(object):
             if pre == 0:
                 if i > len(data) - 8:
                     # we might need more data to complete the sequence
-                    self.notify()
                     self.pending = data[i:]
                     return
                 else:
@@ -234,13 +241,38 @@ class Terminal(object):
             else:
                 self.puts(data[i])
                 i += 1
-        self.notify()
+            self.notify()
 
-    def notify(self):
-        if self.dirty:
-            self.dirty = False
-            if self.callback:
-                self.callback(self)
+    def notify(self, thread=False):
+        if not thread:
+            threading.Thread(target=self.notify, kwargs={'thread': True}).start()
+            return
+
+        self.smooth_queue.put(1)
+        if not self.smooth_lock.acquire(False):
+            return
+
+        while True:
+            try:
+                self.smooth_queue.get(False)
+            except Empty:
+                break
+
+        while True:
+            # make a best effort to BOTH not block the caller
+            # and not call the callback twice at the same time
+            if self.dirty:
+                self.dirty = False
+                time.sleep(self.frame)
+
+                if self.callback:
+                    self.callback(self)
+
+            try:
+                self.smooth_queue.get(False)
+            except Empty:
+                break
+        self.smooth_lock.release()
 
     def dump(self):
         return ''.join(col for row in self.buf for col in row + ['\n'])
