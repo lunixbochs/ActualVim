@@ -169,7 +169,7 @@ class Vim:
         self.port = self.socket.port
         self.socket.spawn()
 
-    def _update(self, v):
+    def _update(self, v, dirty, moved):
         data = v.dump()
         self.status, self.cmdline = [
             s.strip() for s in data.rsplit('\n')[-3:-1]
@@ -190,10 +190,11 @@ class Vim:
 
         if self.monitor:
             with Edit(self.monitor) as edit:
-                edit.erase(sublime.Region(0, self.monitor.size()))
-                edit.insert(0, data)
-                edit.reselect(
-                    lambda view: view.text_point(v.row - 1, v.col - 1))
+                if dirty:
+                    edit.erase(sublime.Region(0, self.monitor.size()))
+                    edit.insert(0, data)
+                    edit.reselect(
+                        lambda view: view.text_point(v.row - 1, v.col - 1))
 
                 def update_cursor(view, edit):
                     row, col = (self.row - 1, self.col + 1)
@@ -208,10 +209,11 @@ class Vim:
                         'cursor', [sel], 'comment',
                         '', sublime.DRAW_EMPTY,
                     )
-                edit.callback(update_cursor)
+                if moved:
+                    edit.callback(update_cursor)
 
         if self.callback:
-            self.callback(self)
+            self.callback(self, dirty, moved)
 
     def send(self, b):
         # send input

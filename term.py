@@ -106,15 +106,18 @@ class Terminal(object):
         self.fps = fps
         self.frame = 1.0 / fps
         self.buf = Buffer(self.rows, self.cols)
+        self.row = 1
+        self.col = 1
         self.reset()
+
         self.smooth_lock = threading.RLock()
         self.smooth_queue = Queue()
+        self.moved = False
 
     def reset(self):
         self.scroll = (1, self.rows)
-        self.row = 1
-        self.col = 1
         self.clear()
+        self.move(1, 1)
 
     def clear(self):
         self.buf.reset()
@@ -129,8 +132,8 @@ class Terminal(object):
 
     def move(self, row=None, col=None, rel=False):
         if rel:
-            row = self.row + row or 1
-            col = self.col + col or 1
+            row = self.row + (row or 1)
+            col = self.col + (col or 1)
         else:
             if row is None:
                 row = self.row
@@ -151,6 +154,9 @@ class Terminal(object):
             self.del_lines(end - row, start)
             row = end
 
+        if self.row != row or self.col != col:
+            self.moved = True
+
         self.row = row
         self.col = col
 
@@ -159,8 +165,18 @@ class Terminal(object):
 
     def erase(self, start, end):
         save = self.row, self.col
-        for row in range(start[0], end[0]):
-            for col in range(start[1], end[1]):
+        for row in range(start[0], end[0] + 1):
+            if row == start[0]:
+                left = start[1]
+                right = end[1]
+            elif row == end[0]:
+                left = 0
+                right = end[1]
+            else:
+                left = 0
+                right = self.cols
+
+            for col in range(left, right + 1):
                 self.move(row, col)
                 self.puts(' ')
         self.row, self.col = save
@@ -196,10 +212,11 @@ class Terminal(object):
 
     def pre(self, data, i):
         b = data[i]
+        # print(repr(data[i:i+8]))
         if b == self.ESCAPE:
             return self.sequence(data, i)
         elif b == '\b':
-            self.col = max(0, self.col - 1)
+            self.rel(col=-1)
             self.puts(' ', move=False)
             return 1
         elif b == '\r':
@@ -237,11 +254,12 @@ class Terminal(object):
                     continue
             elif pre is not None:
                 i += pre
+                self.notify()
                 continue
             else:
                 self.puts(data[i])
+                self.notify()
                 i += 1
-            self.notify()
 
     def notify(self, thread=False):
         if not thread:
@@ -261,12 +279,14 @@ class Terminal(object):
         while True:
             # make a best effort to BOTH not block the caller
             # and not call the callback twice at the same time
-            if self.dirty:
+            if self.dirty or self.moved:
+                dirty, moved = self.dirty, self.moved
                 self.dirty = False
+                self.moved = False
                 time.sleep(self.frame)
 
                 if self.callback:
-                    self.callback(self)
+                    self.callback(self, dirty, moved)
 
             try:
                 self.smooth_queue.get(False)
@@ -341,7 +361,7 @@ class VT100(Terminal):
             ('[H', lambda: self.move(1, 1)),
             ('[2J', lambda: self.clear()),
             ('[K', lambda: self.erase(
-                (self.row, self.col), (self.row + 1, self.cols))),
+                (self.row, self.col), (self.row, self.cols))),
             ('[L', lambda: self.insert_lines(1)),
             ('[M', lambda: self.del_lines(1)),
             # noop

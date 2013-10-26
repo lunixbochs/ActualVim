@@ -49,7 +49,7 @@ class ActualPanel:
         self.vim.panel = None
 
 
-def update(vim):
+def update(vim, dirty, moved):
     mode = vim.mode
     view = vim.view
     tty = vim.tty
