@@ -106,8 +106,10 @@ def update(vim, dirty, moved):
                     end = view.line(end).b
                 sel.add(sublime.Region(start, end))
             elif mode == 'v':
+                # visual mode
                 sel.add(sublime.Region(start, end))
             elif mode == '^V':
+                # visual block mode
                 for i in range(top, bot + 1):
                     line = view.line(view.text_point(i, 0))
                     _, end = view.rowcol(line.b)

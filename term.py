@@ -262,37 +262,41 @@ class Terminal(object):
                 i += 1
 
     def notify(self, thread=False):
+        if not self.callback:
+            return
+
         if not thread:
             threading.Thread(target=self.notify, kwargs={'thread': True}).start()
             return
 
         self.smooth_queue.put(1)
+
         if not self.smooth_lock.acquire(False):
             return
 
-        while True:
-            try:
-                self.smooth_queue.get(False)
-            except Empty:
-                break
+        try:
+            while True:
+                while True:
+                    try:
+                        self.smooth_queue.get(False)
+                    except Empty:
+                        break
 
-        while True:
-            # make a best effort to BOTH not block the caller
-            # and not call the callback twice at the same time
-            if self.dirty or self.moved:
-                dirty, moved = self.dirty, self.moved
-                self.dirty = False
-                self.moved = False
-                time.sleep(self.frame)
-
-                if self.callback:
+                # make a best effort to BOTH not block the caller
+                # and not call the callback twice at the same time
+                if self.dirty or self.moved:
+                    dirty, moved = self.dirty, self.moved
+                    self.dirty = False
+                    self.moved = False
+                    time.sleep(self.frame)
                     self.callback(self, dirty, moved)
 
-            try:
-                self.smooth_queue.get(False)
-            except Empty:
-                break
-        self.smooth_lock.release()
+                try:
+                    self.smooth_queue.get(False)
+                except Empty:
+                    break
+        finally:
+            self.smooth_lock.release()
 
     def dump(self):
         return ''.join(col for row in self.buf for col in row + ['\n'])
