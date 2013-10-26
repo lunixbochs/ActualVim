@@ -139,9 +139,9 @@ class Vim:
         self.visual = (0, 0)
         self.visual_selected = False
 
+        self.tty = None
         self.__serve()
         self.__spawn()
-        self.tty = None
 
     def __spawn(self):
         master, slave = pty.openpty()
