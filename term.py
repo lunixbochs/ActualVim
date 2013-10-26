@@ -44,6 +44,9 @@ class Row(object):
     def __iter__(self):
         return iter(self.data)
 
+    def __str__(self):
+        return ''.join(self)
+
     def __getitem__(self, col):
         return self.data[col]
 

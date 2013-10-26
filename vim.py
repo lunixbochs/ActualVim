@@ -139,6 +139,7 @@ class Vim:
         self.visual = (0, 0)
         self.visual_selected = False
 
+        self.panel = None
         self.tty = None
         self.__serve()
         self.__spawn()
