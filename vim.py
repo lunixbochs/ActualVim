@@ -2,6 +2,7 @@
 # vim.py
 # launches and manages a headless vim instance
 
+import itertools
 import os
 import pty
 import select
@@ -14,8 +15,71 @@ from .edit import Edit
 from .term import VT100
 
 
+replace = [
+    ('"', '\\"'),
+    ('\n', '\\n'),
+    ('\r', '\\r'),
+    ('\t', '\\t'),
+    ('\\', '\\\\'),
+]
+
+
+def encode(s, t=None):
+    types = [
+        (str, 'string'),
+        ((int, float), 'number'),
+        (bool, 'boolean'),
+    ]
+    if t is None:
+        for typ, b in types:
+            if isinstance(s, typ):
+                t = b
+                break
+        else:
+            return ''
+
+    if t == 'string':
+        for a, b in replace:
+            s = s.replace(a, b)
+        return '"' + s + '"'
+    elif t == 'number':
+        return str(s)
+    elif t == 'boolean':
+        return 'T' if s else 'F'
+    elif t == 'color':
+        if isinstance(s, (int, float)) or s:
+            return str(s)
+        else:
+            return encode('none')
+
+
+def decode(s, t=None):
+    if t is None:
+        if s.startswith('"'):
+            t = 'string'
+        elif s.replace('.', '', 1).isdigit():
+            t = 'number'
+        elif s in 'TF':
+            t = 'boolean'
+        else:
+            return s
+
+    if t == 'string':
+        s = s.replace('"', '', 1)[:-1]
+        for a, b in replace:
+            s = s.replace(b, a)
+        return s
+    elif t == 'number':
+        return float(s)
+    elif t == 'boolean':
+        return True if s == 'T' else False
+    else:
+        return s
+
+
 class VimSocket:
-    def __init__(self, view):
+    def __init__(self, vim, view, callback=None):
+        self.vim = vim
         self.view = view
         self.server = socket.socket()
         self.server.bind(('localhost', 0))
@@ -23,13 +87,16 @@ class VimSocket:
         self.client = None
         self.extra = ''
         self.port = self.server.getsockname()[1]
+        self.serial = itertools.count(start=2)
+        self.callbacks = {}
+        self.callback = callback
 
     def spawn(self):
         threading.Thread(target=self.loop).start()
 
     def active(self):
         return self.view.buffer_id() != 0 and self.server.fileno() >= 0
-    
+
     def handle(self, data):
         view = self.view
         data = self.extra + data
@@ -44,11 +111,12 @@ class VimSocket:
                     seq, args = args.split(' ', 1)
                 else:
                     seq, args = args, None
+                seq = int(seq)
+
                 if cmd == 'insert':
                     pos, text = args.split(' ', 1)
-                    text = text.replace('"', '', 1).rsplit('"', 1)[0]
-                    text = text.replace('\\n', '\n')
-                    pos = int(pos)
+                    text = decode(text, 'string')
+                    pos = decode(pos)
                     if text == '\n':
                         pos -= 1
 
@@ -61,10 +129,27 @@ class VimSocket:
                 elif cmd == 'disconnect':
                     view.set_scratch(True)
                     raise socket.error
+            else:
+                if ' ' in cmd:
+                    seq, cmd = cmd.split(' ', 1)
+                else:
+                    seq, cmd = cmd, ''
+                if seq.isdigit():
+                    seq = int(seq)
+                    callback = self.callbacks.pop(seq, None)
+                    if callback:
+                        callback(cmd)
 
-        with Edit(view) as edit:
-            for args in edits:
-                edit.step(*args)
+        if edits:
+            def cursor(args):
+                buf, lnum, col, off = [int(a) for a in args.split(' ')]
+                with Edit(view) as edit:
+                    for args in edits:
+                        edit.step(*args)
+                    edit.reselect(off)
+
+                self.callback(self.vim)
+            self.get_cursor(cursor)
 
     def send(self, data):
         try:
@@ -79,7 +164,7 @@ class VimSocket:
             if disconnect:
                 self.send('1:disconnect!1')
             self.client.close()
-        
+
     def loop(self):
         sockets = [self.server]
         try:
@@ -109,6 +194,32 @@ class VimSocket:
         finally:
             self.close(disconnect=True)
 
+    def cmd(self, buf, name, *args, **kwargs):
+        seq = kwargs.get('seq', 1)
+        sep = kwargs.get('sep', '!')
+        cmd = '{}:{}{}{}'.format(buf, name, sep, seq)
+        if args is not None:
+            cmd += ' ' + ' '.join(encode(a) for a in args)
+        self.send(cmd)
+
+    def func(self, *args, **kwargs):
+        return self.cmd(*args, sep='/', **kwargs)
+
+    def add_callback(self, callback):
+        if not callback:
+            return None
+        serial = next(self.serial)
+        self.callbacks[serial] = callback
+        return serial
+
+    def get_cursor(self, callback):
+        serial = self.add_callback(callback)
+        self.func('1', 'getCursor', seq=serial)
+
+    def set_cursor(self, offset, callback=None):
+        serial = self.add_callback(callback)
+        self.cmd('1', 'setDot', offset, seq=serial)
+
 
 class Vim:
     DEFAULT_CMD = ('vim',)
@@ -123,13 +234,14 @@ class Vim:
             '--cmd', 'set shortmess=aoOtTWAI',
         )
 
-    def __init__(self, view, rows=24, cols=80, monitor=None, cmd=None, callback=None):
+    def __init__(self, view, rows=24, cols=80, monitor=None, cmd=None, update=None, modify=None):
         self.view = view
         self.monitor = monitor
         self.rows = rows
         self.cols = cols
         self.cmd = cmd or self.DEFAULT_CMD
-        self.callback = callback
+        self.update_callback = update
+        self.modify_callback = modify
 
         self.proc = None
         self.input = None
@@ -165,7 +277,7 @@ class Vim:
         threading.Thread(target=pump).start()
 
     def __serve(self):
-        self.socket = VimSocket(self.view)
+        self.socket = VimSocket(self, self.view, callback=self.modify_callback)
         self.port = self.socket.port
         self.socket.spawn()
 
@@ -212,8 +324,8 @@ class Vim:
                 if moved:
                     edit.callback(update_cursor)
 
-        if self.callback:
-            self.callback(self, dirty, moved)
+        if self.update_callback:
+            self.update_callback(self, dirty, moved)
 
     def send(self, b):
         # send input
@@ -232,6 +344,19 @@ class Vim:
             self.monitor.close()
         self.proc.kill()
         self.socket.close()
+
+    def update_cursor(self, *args, **kwargs):
+        def callback(args):
+            buf, lnum, col, off = [int(a) for a in args.split(' ')]
+            with Edit(self.view) as edit:
+                edit.reselect(off)
+        self.socket.get_cursor(callback)
+
+    def get_cursor(self, callback):
+        self.socket.get_cursor(callback)
+
+    def set_cursor(self, offset, callback=None):
+        self.socket.set_cursor(offset, callback=callback)
 
 if __name__ == '__main__':
     import time

@@ -2,6 +2,7 @@ import sublime
 import sublime_plugin
 
 from .edit import Edit
+from .view import ViewMeta, copy_sel
 from .vim import Vim
 
 try:
@@ -18,8 +19,31 @@ class ActualKeypress(sublime_plugin.TextCommand):
 
 
 class ActualListener(sublime_plugin.EventListener):
-    def on_selection_modified(self, view):
-        pass # print(view.id())
+    def on_selection_modified_async(self, view):
+        if view == v.view:
+            m = ViewMeta.get(view)
+            if v.mode in ('V', 'v', '^V'):
+                return
+
+            if not m.sel_changed():
+                return
+
+            sel = view.sel()
+            if not sel:
+                return
+
+            sel = sel[0].b
+            def cursor(args):
+                buf, lnum, col, off = [int(a) for a in args.split(' ')]
+                if off != sel and off < view.size():
+                    # looks like we changed selection on Sublime's side
+                    v.set_cursor(sel, callback=v.update_cursor)
+            v.get_cursor(cursor)
+
+    def on_modified(self, view):
+        if view == v.view:
+            m = ViewMeta.get(view)
+            m.sel_changed()
 
     def on_close(self, view):
         if view == v.view:
@@ -118,13 +142,10 @@ def update(vim, dirty, moved):
         Edit.defer(view, select)
         return
     else:
-        def select():
-            pos = view.text_point(vim.row-1, vim.col-1)
-            sel = view.sel()
-            sel.clear()
-            sel.add(sublime.Region(pos, pos))
+        v.update_cursor()
 
-        Edit.defer(view, select)
+def modify(vim):
+    pass
 
 def plugin_loaded():
     global v
@@ -141,4 +162,4 @@ def plugin_loaded():
 
     view.settings().set('actual_intercept', True)
     view.settings().set('actual_mode', True)
-    v = Vim(view, monitor=output, callback=update)
+    v = Vim(view, monitor=output, update=update, modify=modify)
