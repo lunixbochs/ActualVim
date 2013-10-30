@@ -59,9 +59,6 @@ def update(vim, dirty, moved):
     else:
         view.erase_status('actual')
 
-    if mode in 'iR':
-        return
-
     if tty.row == tty.rows and tty.col > 0:
         char = tty.buf[tty.row - 1][0]
         if char in ':/':
