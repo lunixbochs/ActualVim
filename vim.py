@@ -32,7 +32,7 @@ class VimSocket:
     
     def handle(self, data):
         view = self.view
-        data += self.extra
+        data = self.extra + data
         commands = data.split('\n')
         self.extra = commands.pop()
         edits = []
