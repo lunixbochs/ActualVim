@@ -8,7 +8,7 @@ from .vim import Vim
 try:
     v = v.close()
 except (NameError, AttributeError):
-    pass
+    v = None
 
 
 class ActualKeypress(sublime_plugin.TextCommand):
@@ -20,7 +20,7 @@ class ActualKeypress(sublime_plugin.TextCommand):
 
 class ActualListener(sublime_plugin.EventListener):
     def on_selection_modified_async(self, view):
-        if view == v.view:
+        if v and view == v.view:
             m = ViewMeta.get(view)
             if v.mode in ('V', 'v', '^V'):
                 return
@@ -41,12 +41,12 @@ class ActualListener(sublime_plugin.EventListener):
             v.get_cursor(cursor)
 
     def on_modified(self, view):
-        if view == v.view:
+        if v and view == v.view:
             m = ViewMeta.get(view)
             m.sel_changed()
 
     def on_close(self, view):
-        if view == v.view:
+        if v and view == v.view:
             v.close()
 
 
