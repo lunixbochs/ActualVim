@@ -179,11 +179,15 @@ class VimSocket:
                     else:
                         continue
                 elif self.client in ready:
-                    # the receive buffer is absurdly long
-                    # allowing us to batch edits with pretty much any line length
-                    # because an edit requires a successive delete/insert
-                    # it would flicker without this
+                    # we're willing to wait up to 1/120 of a second
+                    # for a delete following an erase
+                    # this and a big buffer prevent flickering.
                     data = self.client.recv(102400).decode('utf8')
+                    if 'remove' in data and not 'insert' in data:
+                        more, _, _ = select.select([self.client], [], [], 1.0 / 120)
+                        if more:
+                            data += self.client.recv(102400).decode('utf8')
+
                     # print('data:', data)
                     if data:
                         self.handle(data)
