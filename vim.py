@@ -15,6 +15,7 @@ from .edit import Edit
 from .term import VT100
 
 
+VISUAL_MODES = ('V', 'v', '^V', '\x16')
 replace = [
     ('"', '\\"'),
     ('\n', '\\n'),

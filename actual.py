@@ -3,7 +3,7 @@ import sublime_plugin
 
 from .edit import Edit
 from .view import ViewMeta, copy_sel
-from .vim import Vim
+from .vim import Vim, VISUAL_MODES
 
 try:
     v = v.close()
@@ -22,7 +22,7 @@ class ActualListener(sublime_plugin.EventListener):
     def on_selection_modified_async(self, view):
         if v and view == v.view:
             m = ViewMeta.get(view)
-            if v.mode in ('V', 'v', '^V'):
+            if v.mode in VISUAL_MODES:
                 return
 
             if not m.sel_changed():
@@ -101,7 +101,7 @@ def update(vim, dirty, moved):
         vim.panel.close()
         vim.panel = None
 
-    if mode in ('V', 'v', '^V'):
+    if mode in VISUAL_MODES:
         def select():
             vr, vc = vim.visual
             sel = view.sel()
@@ -129,7 +129,7 @@ def update(vim, dirty, moved):
             elif mode == 'v':
                 # visual mode
                 sel.add(sublime.Region(start, end))
-            elif mode == '^V':
+            elif mode in ('^V', '\x16'):
                 # visual block mode
                 for i in range(top, bot + 1):
                     line = view.line(view.text_point(i, 0))
