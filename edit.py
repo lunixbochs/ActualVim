@@ -103,6 +103,9 @@ class Edit:
 
         self.callback(select)
 
+    def append(self, text):
+        self.insert(self.view.size(), text)
+
     def run(self, view, edit):
         read_only = False
         if view.is_read_only():
