@@ -53,7 +53,12 @@ class ActualListener(sublime_plugin.EventListener):
                 else:
                     if v.mode != 'n':
                         v.press('escape')
-                    v.type('{}gov{}go'.format(sel.a + 1, sel.b + 1))
+                    a, b = sel.a, sel.b
+                    if b > a:
+                        a += 1
+                    else:
+                        b += 1
+                    v.type('{}gov{}go'.format(a, b))
 
             v.get_cursor(cursor)
 
