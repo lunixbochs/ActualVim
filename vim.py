@@ -338,9 +338,13 @@ class Vim:
             self.input.write(b.encode('utf8'))
             self.input.flush()
 
-    def press(self, key):
-        b = VT100.map(key)
-        self.send(b)
+    def press(self, *keys):
+        for key in keys:
+            b = VT100.map(key)
+            self.send(b)
+
+    def type(self, text):
+        self.press(*list(text))
 
     def close(self):
         print('ending Vim')

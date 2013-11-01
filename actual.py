@@ -2,7 +2,7 @@ import sublime
 import sublime_plugin
 
 from .edit import Edit
-from .view import ViewMeta, copy_sel
+from .view import ViewMeta
 from .vim import Vim, VISUAL_MODES
 
 try:
@@ -22,9 +22,6 @@ class ActualListener(sublime_plugin.EventListener):
     def on_selection_modified_async(self, view):
         if v and view == v.view:
             m = ViewMeta.get(view)
-            if v.mode in VISUAL_MODES:
-                return
-
             if not m.sel_changed():
                 return
 
@@ -32,12 +29,32 @@ class ActualListener(sublime_plugin.EventListener):
             if not sel:
                 return
 
-            sel = sel[0].b
+            sel = sel[0]
             def cursor(args):
                 buf, lnum, col, off = [int(a) for a in args.split(' ')]
-                if off != sel and off < view.size():
-                    # looks like we changed selection on Sublime's side
-                    v.set_cursor(sel, callback=v.update_cursor)
+                # see if we changed selection on Sublime's side
+                if v.mode in VISUAL_MODES:
+                    start = lnum, col
+                    end = v.visual
+                    region = m.visual(v.mode, start, end)[0]
+                    if (sel.b, sel.a) == region:
+                        return
+
+                if off == sel.b or off > view.size():
+                    return
+
+                # selection didn't match Vim's, so let's change Vim's.
+                if sel.b == sel.a:
+                    if v.mode in VISUAL_MODES:
+                        # v.type('{}go'.format(sel.b))
+                        v.press('escape')
+
+                    v.set_cursor(sel.b, callback=v.update_cursor)
+                else:
+                    if v.mode != 'n':
+                        v.press('escape')
+                    v.type('{}gov{}go'.format(sel.a + 1, sel.b + 1))
+
             v.get_cursor(cursor)
 
     def on_modified(self, view):
@@ -103,41 +120,13 @@ def update(vim, dirty, moved):
 
     if mode in VISUAL_MODES:
         def select():
-            vr, vc = vim.visual
-            sel = view.sel()
-            sel.clear()
-
-            left = min(vc, vim.col) - 1
-            right = max(vc, vim.col)
-            top = min(vr, vim.row) - 1
-            bot = max(vr, vim.row) - 1
-
-            start = view.text_point(vr - 1, vc - 1)
-            end = view.text_point(vim.row - 1, vim.col - 1)
-            if mode == 'V':
-                # visual line mode
-                if start == end:
-                    pos = view.line(start)
-                    start, end = pos.a, pos.b
-                elif start > end:
-                    start = view.line(start).b
-                    end = view.line(end).a
-                else:
-                    start = view.line(start).a
-                    end = view.line(end).b
-                sel.add(sublime.Region(start, end))
-            elif mode == 'v':
-                # visual mode
-                sel.add(sublime.Region(start, end))
-            elif mode in ('^V', '\x16'):
-                # visual block mode
-                for i in range(top, bot + 1):
-                    line = view.line(view.text_point(i, 0))
-                    _, end = view.rowcol(line.b)
-                    if left <= end:
-                        a = view.text_point(i, left)
-                        b = view.text_point(i, right)
-                        sel.add(sublime.Region(a, b))
+            m = ViewMeta.get(view)
+            start = vim.visual
+            end = (vim.row, vim.col)
+            regions = m.visual(vim.mode, start, end)
+            view.sel().clear()
+            for r in regions:
+                view.sel().add(sublime.Region(*r))
 
         Edit.defer(view, select)
         return
