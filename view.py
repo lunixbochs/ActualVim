@@ -40,8 +40,8 @@ class ViewMeta:
         top = min(sr, er) - 1
         bot = max(sr, er) - 1
 
-        start = view.text_point(sr - 1, sc - 1)
-        end = view.text_point(er - 1, ec - 1)
+        start = view.text_point(bot, left)
+        end = view.text_point(top, right)
         if mode == 'V':
             # visual line mode
             if start == end:

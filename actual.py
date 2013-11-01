@@ -34,10 +34,10 @@ class ActualListener(sublime_plugin.EventListener):
                 buf, lnum, col, off = [int(a) for a in args.split(' ')]
                 # see if we changed selection on Sublime's side
                 if v.mode in VISUAL_MODES:
-                    start = lnum, col
-                    end = v.visual
+                    start = v.visual
+                    end = lnum, col + 1
                     region = m.visual(v.mode, start, end)[0]
-                    if (sel.b, sel.a) == region:
+                    if (sel.a, sel.b) == region:
                         return
 
                 if off == sel.b or off > view.size():
