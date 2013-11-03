@@ -1,9 +1,9 @@
 Actual Vim
 ----
 
-Warning: This is alpha software. It's slightly past the proof of concept stage. There are several blatant bugs and it lacks some important features.
+Warning: This is alpha software. Editing files is not yet entirely consistent.
 
-The goal is to use a hidden Vim instance to accurately manipulate a Sublime Text buffer as though you were editing the text directly in Vim. This has been roughly accomplished.
+The goal is to use a hidden Vim instance to accurately manipulate a Sublime Text buffer as though you were editing the text directly in Vim. This has been accomplished.
 
 It's not simply a terminal emulator embedded in a text editor. Sublime is still in control of the text buffer. You will be able to use the entire native Sublime interface while in INSERT mode, including plugins.
 
@@ -23,7 +23,7 @@ This plugin relies on Vim itself, and operating system features not found in Win
 
 Just clone this to `Sublime Text 3/Packages/actualvim/`
 
-Sublime will open a new untitled buffer when it loads the plugin. If all goes well, this buffer will act roughly llke Vim.
+Actual will launch a controlling instance of Vim for every Sublime Text view you open.
 
 Misc
 ----
