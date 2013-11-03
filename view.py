@@ -1,4 +1,5 @@
 import sublime
+import traceback
 
 
 def copy_sel(sel):
@@ -11,17 +12,22 @@ class ViewMeta:
     views = {}
 
     @classmethod
-    def get(cls, view):
+    def get(cls, view, create=True):
         vid = view.id()
         m = cls.views.get(vid)
-        if not m:
-            m = cls(view)
+        if not m and create:
+            try:
+                m = cls(view)
+            except Exception:
+                traceback.print_exc()
+                return
             cls.views[vid] = m
         return m
 
     def __init__(self, view):
         self.view = view
         self.last_sel = copy_sel(view)
+        self.buf = ''
 
     def sel_changed(self):
         new_sel = copy_sel(self.view)
@@ -68,3 +74,6 @@ class ViewMeta:
                     regions.append((a, b))
 
         return regions
+
+    def size(self):
+        return len(self.buf)

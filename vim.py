@@ -91,6 +91,7 @@ class VimSocket:
         self.serial = itertools.count(start=2)
         self.callbacks = {}
         self.callback = callback
+        self.preload = []
 
     def spawn(self):
         threading.Thread(target=self.loop).start()
@@ -153,6 +154,10 @@ class VimSocket:
             self.get_cursor(cursor)
 
     def send(self, data):
+        if not self.client:
+            self.preload.append(data)
+            return
+
         try:
             data = (data + '\r\n').encode('utf8')
             self.client.send(data)
@@ -170,13 +175,18 @@ class VimSocket:
         sockets = [self.server]
         try:
             while self.active():
-                ready, _, _ = select.select(sockets, [], [], 0.1)
+                try:
+                    ready, _, _ = select.select(sockets, [], [], 0.1)
+                except ValueError:
+                    raise socket.error
                 if not self.client:
                     if self.server in ready:
                         print('client connection')
                         self.client, addr = self.server.accept()
                         sockets = [self.client]
                         self.send('1:create!1')
+                        for line in self.preload:
+                            self.send(line)
                     else:
                         continue
                 elif self.client in ready:
@@ -224,6 +234,12 @@ class VimSocket:
     def set_cursor(self, offset, callback=None):
         serial = self.add_callback(callback)
         self.cmd('1', 'setDot', offset, seq=serial)
+
+    def insert(self, offset, text):
+        self.func('1', 'insert', offset, str(text or ''))
+
+    def init_done(self):
+        self.cmd('1', 'initDone')
 
 
 class Vim:
@@ -366,6 +382,12 @@ class Vim:
 
     def set_cursor(self, offset, callback=None):
         self.socket.set_cursor(offset, callback=callback)
+
+    def insert(self, offset, text):
+        self.socket.insert(offset, text)
+
+    def init_done(self):
+        self.socket.init_done()
 
 if __name__ == '__main__':
     import time

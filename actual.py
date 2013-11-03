@@ -5,38 +5,129 @@ from .edit import Edit
 from .view import ViewMeta
 from .vim import Vim, VISUAL_MODES
 
-try:
-    v = v.close()
-except (NameError, AttributeError):
-    v = None
 
+class ActualVim(ViewMeta):
+    def __init__(self, view):
+        super().__init__(view)
+        if view.settings().get('actual_monitor'):
+            return
+
+        view.settings().set('actual_intercept', True)
+        view.settings().set('actual_mode', True)
+        self.vim = vim = Vim(view, update=self.update, modify=self.modify)
+        vim.insert(0, view.substr(sublime.Region(0, view.size())))
+        vim.init_done()
+        # view.set_read_only(False)
+
+        self.output = None
+
+    @property
+    def actual(self):
+        return self.view and self.view.settings().get('actual_mode')
+
+    def monitor(self):
+        if self.output:
+            return
+
+        self.output = output = sublime.active_window().new_file()
+        ActualVim.views[output.id()] = self
+
+        output.settings().set('actual_monitor', True)
+        output.set_read_only(True)
+        output.set_scratch(True)
+        output.set_name('(tty)')
+        output.settings().set('actual_intercept', True)
+        output.settings().set('actual_mode', True)
+        self.vim.monitor = output
+
+    def update(self, vim, dirty, moved):
+        mode = vim.mode
+        view = vim.view
+        tty = vim.tty
+
+        if vim.cmdline:
+            view.set_status('actual', vim.cmdline)
+        else:
+            view.erase_status('actual')
+
+        if tty.row == tty.rows and tty.col > 0:
+            char = tty.buf[tty.row - 1][0]
+            if char in ':/':
+                if vim.panel:
+                    # we already have a panel
+                    panel = vim.panel.panel
+                    with Edit(panel) as edit:
+                        edit.replace(sublime.Region(0, panel.size()), vim.cmdline)
+                else:
+                    # vim is prompting for input
+                    row, col = (tty.row - 1, tty.col - 1)
+                    vim.panel = ActualPanel(vim, view)
+                    vim.panel.show(char)
+                return
+        elif vim.panel:
+            vim.panel.close()
+            vim.panel = None
+
+        if mode in VISUAL_MODES:
+            def select():
+                m = ViewMeta.get(view)
+                start = vim.visual
+                end = (vim.row, vim.col)
+                regions = m.visual(vim.mode, start, end)
+                view.sel().clear()
+                for r in regions:
+                    view.sel().add(sublime.Region(*r))
+
+            Edit.defer(view, select)
+            return
+        else:
+            vim.update_cursor()
+
+    def modify(self, vim):
+        pass
+
+    def close(self, view):
+        if self.output:
+            self.output.close()
+
+        if view == self.view:
+            self.view.close()
+            self.vim.close()
 
 class ActualKeypress(sublime_plugin.TextCommand):
     def run(self, edit, key):
-        global v
-        if v:
-            v.press(key)
+        v = ActualVim.get(self.view)
+        if v and v.actual:
+            v.vim.press(key)
 
 
 class ActualListener(sublime_plugin.EventListener):
+    def on_new_async(self, view):
+        ActualVim.get(view)
+
+    def on_load(self, view):
+        ActualVim.get(view)
+
     def on_selection_modified_async(self, view):
-        if v and view == v.view:
+        v = ActualVim.get(view, create=False)
+        if v and v.actual:
             m = ViewMeta.get(view)
-            if not m.sel_changed():
+            if not v.sel_changed():
                 return
 
             sel = view.sel()
             if not sel:
                 return
 
+            vim = v.vim
             sel = sel[0]
             def cursor(args):
                 buf, lnum, col, off = [int(a) for a in args.split(' ')]
                 # see if we changed selection on Sublime's side
-                if v.mode in VISUAL_MODES:
-                    start = v.visual
+                if vim.mode in VISUAL_MODES:
+                    start = vim.visual
                     end = lnum, col + 1
-                    region = m.visual(v.mode, start, end)[0]
+                    region = m.visual(vim.mode, start, end)[0]
                     if (sel.a, sel.b) == region:
                         return
 
@@ -45,31 +136,32 @@ class ActualListener(sublime_plugin.EventListener):
 
                 # selection didn't match Vim's, so let's change Vim's.
                 if sel.b == sel.a:
-                    if v.mode in VISUAL_MODES:
-                        # v.type('{}go'.format(sel.b))
-                        v.press('escape')
+                    if vim.mode in VISUAL_MODES:
+                        # vim.type('{}go'.format(sel.b))
+                        vim.press('escape')
 
-                    v.set_cursor(sel.b, callback=v.update_cursor)
+                    vim.set_cursor(sel.b, callback=vim.update_cursor)
                 else:
-                    if v.mode != 'n':
-                        v.press('escape')
+                    if vim.mode != 'n':
+                        vim.press('escape')
                     a, b = sel.a, sel.b
                     if b > a:
                         a += 1
                     else:
                         b += 1
-                    v.type('{}gov{}go'.format(a, b))
+                    vim.type('{}gov{}go'.format(a, b))
 
-            v.get_cursor(cursor)
+            vim.get_cursor(cursor)
 
     def on_modified(self, view):
-        if v and view == v.view:
-            m = ViewMeta.get(view)
-            m.sel_changed()
+        v = ActualVim.get(view, create=False)
+        if v:
+            v.sel_changed()
 
     def on_close(self, view):
-        if v and view == v.view:
-            v.close()
+        v = ActualVim.get(view, create=False)
+        if v:
+            v.close(view)
 
 
 class ActualPanel:
@@ -94,66 +186,15 @@ class ActualPanel:
         self.vim.press('escape')
         self.vim.panel = None
 
+class actual_monitor(sublime_plugin.WindowCommand):
+    @property
+    def view(self):
+        return self.window.active_view()
 
-def update(vim, dirty, moved):
-    mode = vim.mode
-    view = vim.view
-    tty = vim.tty
+    def run(self):
+        v = ActualVim.get(self.view)
+        if v and v.actual:
+            v.monitor()
 
-    if vim.cmdline:
-        view.set_status('actual', vim.cmdline)
-    else:
-        view.erase_status('actual')
-
-    if tty.row == tty.rows and tty.col > 0:
-        char = tty.buf[tty.row - 1][0]
-        if char in ':/':
-            if vim.panel:
-                # we already have a panel
-                panel = vim.panel.panel
-                with Edit(panel) as edit:
-                    edit.replace(sublime.Region(0, panel.size()), vim.cmdline)
-            else:
-                # vim is prompting for input
-                row, col = (tty.row - 1, tty.col - 1)
-                vim.panel = ActualPanel(vim, view)
-                vim.panel.show(char)
-            return
-    elif vim.panel:
-        vim.panel.close()
-        vim.panel = None
-
-    if mode in VISUAL_MODES:
-        def select():
-            m = ViewMeta.get(view)
-            start = vim.visual
-            end = (vim.row, vim.col)
-            regions = m.visual(vim.mode, start, end)
-            view.sel().clear()
-            for r in regions:
-                view.sel().add(sublime.Region(*r))
-
-        Edit.defer(view, select)
-        return
-    else:
-        v.update_cursor()
-
-def modify(vim):
-    pass
-
-def plugin_loaded():
-    global v
-
-    output = sublime.active_window().new_file()
-    output.set_read_only(True)
-    output.set_scratch(True)
-    output.set_name('Vim Monitor')
-    output.settings().set('actual_intercept', True)
-    output.settings().set('actual_mode', True)
-
-    view = sublime.active_window().new_file()
-    view.set_name('Vim')
-
-    view.settings().set('actual_intercept', True)
-    view.settings().set('actual_mode', True)
-    v = Vim(view, monitor=output, update=update, modify=modify)
+    def is_enabled(self):
+        return self.view.settings().get('actual_mode')
