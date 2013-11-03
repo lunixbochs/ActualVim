@@ -38,6 +38,8 @@ class ActualVim(ViewMeta):
         output.set_name('(tty)')
         output.settings().set('actual_intercept', True)
         output.settings().set('actual_mode', True)
+        with Edit(output) as edit:
+            edit.insert(0, self.vim.tty.dump())
         self.vim.monitor = output
 
     def update(self, vim, dirty, moved):
@@ -89,6 +91,7 @@ class ActualVim(ViewMeta):
     def close(self, view):
         if self.output:
             self.output.close()
+            self.output = None
 
         if view == self.view:
             self.view.close()
