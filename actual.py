@@ -188,16 +188,3 @@ class ActualPanel:
     def on_cancel(self):
         self.vim.press('escape')
         self.vim.panel = None
-
-class actual_monitor(sublime_plugin.WindowCommand):
-    @property
-    def view(self):
-        return self.window.active_view()
-
-    def run(self):
-        v = ActualVim.get(self.view)
-        if v and v.actual:
-            v.monitor()
-
-    def is_enabled(self):
-        return self.view.settings().get('actual_mode')
