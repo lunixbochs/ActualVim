@@ -35,8 +35,12 @@ class EditStep:
         if self.cmd == 'callback':
             return run_callback(self.args[0], view, edit)
 
+        def insert(edit, pos, text):
+            pos = min(view.size(), pos)
+            view.insert(edit, pos, text)
+
         funcs = {
-            'insert': view.insert,
+            'insert': insert,
             'erase': view.erase,
             'replace': view.replace,
         }
