@@ -132,8 +132,8 @@ class Terminal(object):
 
     def move(self, row=None, col=None, rel=False):
         if rel:
-            row = self.row + (row or 1)
-            col = self.col + (col or 1)
+            row = self.row + (row or 0)
+            col = self.col + (col or 0)
         else:
             if row is None:
                 row = self.row
@@ -156,9 +156,8 @@ class Terminal(object):
 
         if self.row != row or self.col != col:
             self.moved = True
-
-        self.row = row
-        self.col = col
+            self.row = row
+            self.col = col
 
     def rel(self, row=None, col=None):
         self.move(row, col, rel=True)
@@ -203,7 +202,7 @@ class Terminal(object):
         for c in s:
             self.buf[self.row-1][self.col-1] = c
             if move:
-                self.move(self.row, self.col + 1)
+                self.rel(col=1)
 
     def sequence(self, data, i):
         if self.debug:
@@ -242,7 +241,7 @@ class Terminal(object):
         while i < len(data):
             pre = self.pre(data, i)
             if pre == 0:
-                if i > len(data) - 8:
+                if i > len(data) - 15 and data[i] == self.ESCAPE:
                     # we might need more data to complete the sequence
                     self.pending = data[i:]
                     return
@@ -355,7 +354,8 @@ class VT100(Terminal):
                 (self.row, self.col), (self.rows, self.cols))),
             # noop
             (r'\[\?(\d+)h', None),
-            (r'\[([\d;]+)?m', None),
+            (r'\[(\d+|;)*m', None),
+            (r'\[\?(\d+)l', None),
         )
         SIMPLE = (
             ('[A', lambda: self.rel(row=-1)),
@@ -371,7 +371,6 @@ class VT100(Terminal):
             # noop
             ('>', None),
             ('<', None),
-            ('[?1l', None),
             ('=', None),
         )
 
@@ -401,7 +400,7 @@ class VT100(Terminal):
                     print('<NOOP "{}">'.format(s))
             return len(s)
 
-        context = data[i+1:i+10]
+        context = data[i+1:i+20].split('\033')[0]
         if not context:
             return 0
         for r, func in self.control:
