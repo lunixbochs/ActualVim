@@ -9,7 +9,7 @@ from .vim import Vim, VISUAL_MODES
 class ActualVim(ViewMeta):
     def __init__(self, view):
         super().__init__(view)
-        if view.settings().get('actual_monitor'):
+        if view.settings().get('actual_proxy'):
             return
 
         view.settings().set('actual_intercept', True)
@@ -32,7 +32,7 @@ class ActualVim(ViewMeta):
         self.output = output = sublime.active_window().new_file()
         ActualVim.views[output.id()] = self
 
-        output.settings().set('actual_monitor', True)
+        output.settings().set('actual_proxy', True)
         output.set_read_only(True)
         output.set_scratch(True)
         output.set_name('(tty)')
@@ -63,7 +63,7 @@ class ActualVim(ViewMeta):
                 else:
                     # vim is prompting for input
                     row, col = (tty.row - 1, tty.col - 1)
-                    vim.panel = ActualPanel(vim, view)
+                    vim.panel = ActualPanel(self)
                     vim.panel.show(char)
                 return
         elif vim.panel:
@@ -168,18 +168,23 @@ class ActualListener(sublime_plugin.EventListener):
 
 
 class ActualPanel:
-    def __init__(self, vim, view):
-        self.vim = vim
-        self.view = view
+    def __init__(self, actual):
+        self.actual = actual
+        self.vim = actual.vim
+        self.view = actual.view
+        self.panel = None
 
     def close(self):
-        self.panel.close()
+        if self.panel:
+            self.panel.close()
 
     def show(self, char):
         window = self.view.window()
         self.panel = window.show_input_panel('Vim', char, self.on_done, None, self.on_cancel)
         settings = self.panel.settings()
         settings.set('actual_intercept', True)
+        settings.set('actual_proxy', self.view.id())
+        ActualVim.views[self.panel.id()] = self.actual
 
     def on_done(self, text):
         self.vim.press('enter')
