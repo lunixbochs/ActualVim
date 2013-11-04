@@ -119,9 +119,6 @@ class VimSocket:
                     pos, text = args.split(' ', 1)
                     text = decode(text, 'string')
                     pos = decode(pos)
-                    if text == '\n':
-                        pos -= 1
-
                     edits.append(('insert', pos, text))
                 elif cmd == 'remove':
                     pos, length = args.split(' ', 1)
