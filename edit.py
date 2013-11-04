@@ -104,6 +104,7 @@ class Edit:
 
             view.sel().clear()
             view.sel().add(region)
+            view.show(region, False)
 
         self.callback(select)
 
