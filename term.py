@@ -151,7 +151,7 @@ class Terminal(object):
         if row < start:
             row = start
         if row > end:
-            self.del_lines(end - row, start)
+            self.del_lines(num=row - end, row=start)
             row = end
 
         if self.row != row or self.col != col:
@@ -194,7 +194,7 @@ class Terminal(object):
 
         for i in range(num):
             del self.buf[row - 1]
-            self.buf.insert(self.scroll[1])
+            self.buf.insert(self.scroll[1] - 1)
 
     def puts(self, s, move=True):
         if isinstance(s, int):
