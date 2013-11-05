@@ -313,6 +313,7 @@ class VT100(Terminal):
         'enter': '\n',
         'escape': '\033',
         'space': ' ',
+        'tab': '\t',
         'up': '\033[A',
         'down': '\033[B',
         'right': '\033[C',
