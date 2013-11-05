@@ -152,6 +152,8 @@ class ActualListener(sublime_plugin.EventListener):
 
                     vim.set_cursor(sel.b, callback=vim.update_cursor)
                 else:
+                    # this is currently broken
+                    return
                     if vim.mode != 'n':
                         vim.press('escape')
                     a, b = sel.a, sel.b
