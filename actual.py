@@ -29,7 +29,8 @@ class ActualVim(ViewMeta):
         if self.output:
             return
 
-        self.output = output = sublime.active_window().new_file()
+        window = sublime.active_window()
+        self.output = output = window.new_file()
         ActualVim.views[output.id()] = self
 
         output.settings().set('actual_proxy', True)
@@ -38,9 +39,15 @@ class ActualVim(ViewMeta):
         output.set_name('(tty)')
         output.settings().set('actual_intercept', True)
         output.settings().set('actual_mode', True)
+
         with Edit(output) as edit:
             edit.insert(0, self.vim.tty.dump())
         self.vim.monitor = output
+
+        # move the monitor view to a different group
+        if window.num_groups() > 1:
+            target = int(not window.active_group())
+            window.set_view_index(output, target, 0)
 
     def update(self, vim, dirty, moved):
         mode = vim.mode
