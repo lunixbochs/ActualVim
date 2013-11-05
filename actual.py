@@ -79,10 +79,10 @@ class ActualVim(ViewMeta):
 
         if mode in VISUAL_MODES:
             def select():
-                m = ViewMeta.get(view)
+                v = ActualVim.get(view)
                 start = vim.visual
                 end = (vim.row, vim.col)
-                regions = m.visual(vim.mode, start, end)
+                regions = v.visual(vim.mode, start, end)
                 view.sel().clear()
                 for r in regions:
                     view.sel().add(sublime.Region(*r))
@@ -106,7 +106,7 @@ class ActualVim(ViewMeta):
 
 class ActualKeypress(sublime_plugin.TextCommand):
     def run(self, edit, key):
-        v = ActualVim.get(self.view)
+        v = ActualVim.get(self.view, exact=False)
         if v and v.actual:
             v.vim.press(key)
 
@@ -121,7 +121,6 @@ class ActualListener(sublime_plugin.EventListener):
     def on_selection_modified_async(self, view):
         v = ActualVim.get(view, create=False)
         if v and v.actual:
-            m = ViewMeta.get(view)
             if not v.sel_changed():
                 return
 
@@ -137,7 +136,7 @@ class ActualListener(sublime_plugin.EventListener):
                 if vim.mode in VISUAL_MODES:
                     start = vim.visual
                     end = lnum, col + 1
-                    region = m.visual(vim.mode, start, end)[0]
+                    region = v.visual(vim.mode, start, end)[0]
                     if (sel.a, sel.b) == region:
                         return
 

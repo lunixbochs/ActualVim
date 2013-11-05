@@ -12,7 +12,7 @@ class ViewMeta:
     views = {}
 
     @classmethod
-    def get(cls, view, create=True):
+    def get(cls, view, create=True, exact=True):
         vid = view.id()
         m = cls.views.get(vid)
         if not m and create:
@@ -22,6 +22,9 @@ class ViewMeta:
                 traceback.print_exc()
                 return
             cls.views[vid] = m
+        elif m and exact and m.view != view:
+            return None
+
         return m
 
     def __init__(self, view):
