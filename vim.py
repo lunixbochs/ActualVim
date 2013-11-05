@@ -66,9 +66,19 @@ def decode(s, t=None):
             return s
 
     if t == 'string':
-        s = s.replace('"', '', 1)[:-1]
-        for a, b in replace:
-            s = s.replace(b, a)
+        s = s[1:-1]
+        lookup = {r[1]: r[0] for r in replace}
+        i = 0
+        while i < len(s) - 1:
+            cur = s[i:i+2]
+            if cur in lookup:
+                rep = lookup[cur]
+                s = s[:i] + rep + s[i+2:]
+                i += len(rep)
+                continue
+
+            i += 1
+
         return s
     elif t == 'number':
         return float(s)
