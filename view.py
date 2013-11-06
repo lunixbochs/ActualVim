@@ -73,7 +73,7 @@ class ViewMeta:
                 _, end = view.rowcol(line.b)
                 if left <= end:
                     a = view.text_point(i, left)
-                    b = view.text_point(i, right)
+                    b = view.text_point(i, min(right, end))
                     regions.append((a, b))
 
         return regions
