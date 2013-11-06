@@ -115,12 +115,19 @@ class Terminal(object):
         self.moved = False
 
     def reset(self):
+        self.cursor = True
         self.scroll = (1, self.rows)
         self.clear()
         self.move(1, 1)
 
     def clear(self):
         self.buf.reset()
+
+    def hide_cursor(self):
+        self.cursor = False
+
+    def show_cursor(self):
+        self.cursor = True
 
     @property
     def dirty(self):
@@ -336,6 +343,9 @@ class VT100(Terminal):
 
         # control character handlers
         REGEX = (
+            # cursor display
+            (r'\[\?(12;)?(25|50)l', lambda g: self.hide_cursor()),
+            (r'\[\?(12;)?(25|50)h', lambda g: self.show_cursor()),
             # cursor motion
             (r'\[(\d+)A', lambda g: self.rel(-g[0], 0)),
             (r'\[(\d+)B', lambda g: self.rel(g[0], 0)),
