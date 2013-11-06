@@ -148,16 +148,14 @@ class Terminal(object):
             row -= 1
 
         start, end = self.scroll
-        if row < start:
-            row = start
         if row > end:
             self.del_lines(num=row - end, row=start)
             row = end
 
         if self.row != row or self.col != col:
             self.moved = True
-            self.row = row
-            self.col = col
+            self.row = max(1, min(row, self.rows))
+            self.col = max(1, min(col, self.cols))
 
     def rel(self, row=None, col=None):
         self.move(row, col, rel=True)
@@ -177,7 +175,7 @@ class Terminal(object):
 
             for col in range(left, right + 1):
                 self.move(row, col)
-                self.puts(' ')
+                self.puts(' ', move=False)
         self.row, self.col = save
 
     def insert_lines(self, num=1, row=None):
