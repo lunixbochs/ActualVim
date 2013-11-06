@@ -38,36 +38,40 @@ class ViewMeta:
         self.last_sel = new_sel
         return changed
 
-    def visual(self, mode, start, end):
+    def visual(self, mode, a, b):
         view = self.view
         regions = []
-        sr, sc = start
-        er, ec = end
+        sr, sc = a[0] - 1, a[1] - 1
+        er, ec = b[0] - 1, b[1] - 1
 
-        left = min(sc, ec) - 1
-        right = max(sc, ec)
-        top = min(sr, er) - 1
-        bot = max(sr, er) - 1
+        a = view.text_point(sr, sc)
+        b = view.text_point(er, ec)
 
-        start = view.text_point(bot, left)
-        end = view.text_point(top, right)
         if mode == 'V':
             # visual line mode
-            if start == end:
-                pos = view.line(start)
-                start, end = pos.a, pos.b
-            elif start > end:
-                start = view.line(start).b
-                end = view.line(end).a
+            if a > b:
+                start = view.line(a).b
+                end = view.line(b).a
             else:
-                start = view.line(start).a
-                end = view.line(end).b
+                start = view.line(a).a
+                end = view.line(b).b
+
             regions.append((start, end))
         elif mode == 'v':
             # visual mode
-            regions.append((start, end))
+            if a > b:
+                a += 1
+            else:
+                b += 1
+            regions.append((a, b))
         elif mode in ('^V', '\x16'):
             # visual block mode
+            left = min(sc, ec)
+            right = max(sc, ec) + 1
+            top = min(sr, er)
+            bot = max(sr, er)
+            end = view.text_point(top, right)
+
             for i in range(top, bot + 1):
                 line = view.line(view.text_point(i, 0))
                 _, end = view.rowcol(line.b)
