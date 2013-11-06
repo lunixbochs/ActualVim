@@ -342,6 +342,9 @@ class VT100(Terminal):
             (r'\[(\d+)C', lambda g: self.rel(0, g[0])),
             (r'\[(\d+)D', lambda g: self.rel(0, -g[0])),
             (r'\[(\d+);(\d+)[Hf]', lambda g: self.move(g[0], g[1])),
+            (r'\[(\d+)G', lambda g: self.move(self.row, g[0])),
+            (r'\[(\d*)d', lambda g: self.move(row=g[0] or 1)),
+            (r'\[(\d*)e', lambda g: self.rel(row=g[0] or 1)),
             # set scrolling region
             (r'\[(\d+);(\d+)r', lambda g: self.set_scroll(g[0], g[1])),
             # insert lines under cursor
@@ -353,8 +356,12 @@ class VT100(Terminal):
                 (self.row, self.col), (self.rows, self.cols))),
             # noop
             (r'\[\?(\d+)h', None),
+            ## set cursor attributes
             (r'\[(\d+|;)*m', None),
-            (r'\[\?(\d+)l', None),
+            (r'\[\??(\d+)l', None),
+            # change character set
+            (r'\([AB012]', None),
+
         )
         SIMPLE = (
             ('[A', lambda: self.rel(row=-1)),
