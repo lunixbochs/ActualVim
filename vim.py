@@ -372,6 +372,8 @@ class Vim:
     def close(self):
         print('ending Vim')
         self.view.close()
+        if self.panel:
+            self.panel.close()
         if self.monitor:
             self.monitor.close()
         self.proc.kill()
