@@ -352,7 +352,7 @@ class VT100(Terminal):
             # remove lines from cursor
             (r'\[(\d+)M', lambda g: self.del_lines(g[0])),
             # erase from cursor to end of screen
-            (r'\[0\?J', lambda g: self.erase(
+            (r'\[0?J', lambda g: self.erase(
                 (self.row, self.col), (self.rows, self.cols))),
             # noop
             (r'\[\?(\d+)h', None),
