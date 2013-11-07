@@ -13,4 +13,4 @@ class actual_monitor(sublime_plugin.WindowCommand):
             v.monitor()
 
     def is_enabled(self):
-        return self.view.settings().get('actual_mode')
+        return bool(self.view.settings().get('actual_mode'))
