@@ -191,7 +191,7 @@ class VimSocket:
                         print('client connection')
                         self.client, addr = self.server.accept()
                         sockets = [self.client]
-                        self.send('1:create!1')
+                        self.cmd('1', 'create')
                         for line in self.preload:
                             self.send(line)
                     else:
@@ -248,6 +248,9 @@ class VimSocket:
     def init_done(self):
         self.cmd('1', 'initDone')
 
+    def set_path(self, path):
+        self.cmd('1', 'setFullName', path)
+
 
 class Vim:
     DEFAULT_CMD = ('vim',)
@@ -257,9 +260,10 @@ class Vim:
         return (
             '--cmd', 'set fileformat=unix',
             '--cmd', 'set lines={} columns={}'.format(self.rows, self.cols),
-            '--cmd', '''set statusline=%{printf(\\"%d+%d,%s,%d+%d\\",line(\\".\\"),col(\\".\\"),mode(),line(\\"v\\"),col(\\"v\\"))}''',
+            '--cmd', '''set statusline=%{printf(\\"%d+%d,%s,%d+%d\\",line(\\".\\"),col(\\".\\"),mode(),line(\\"v\\"),col(\\"v\\"))},%M''',
             '--cmd', 'set laststatus=2',
             '--cmd', 'set shortmess=aoOtTWAI',
+            '--cmd', 'set noswapfile',
         )
 
     def __init__(self, view, rows=24, cols=80, monitor=None, cmd=None, update=None, modify=None):
@@ -276,6 +280,7 @@ class Vim:
         self.output = None
         self.row = self.col = 0
         self.mode = 'n'
+        self.modified = False
         self.visual = (0, 0)
         self.visual_selected = False
 
@@ -320,9 +325,10 @@ class Vim:
                 row, col = pos.split('+', 1)
                 self.row, self.col = int(row), int(col)
 
-                self.mode, rest = rest.split(',', 1)
+                self.mode, vs, rest = rest.split(',', 2)
 
-                a, b = rest.split('+', 1)
+                a, b = vs.split('+', 1)
+                self.modified = (rest == '+')
                 self.visual = (int(a), int(b))
             # print(self.status)
         except ValueError:
@@ -397,6 +403,9 @@ class Vim:
 
     def init_done(self):
         self.socket.init_done()
+
+    def set_path(self, path):
+        self.socket.set_path(path)
 
 if __name__ == '__main__':
     import time

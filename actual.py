@@ -15,6 +15,7 @@ class ActualVim(ViewMeta):
         view.settings().set('actual_intercept', True)
         view.settings().set('actual_mode', True)
         self.vim = vim = Vim(view, update=self.update, modify=self.modify)
+        vim.set_path(view.file_name())
         vim.insert(0, view.substr(sublime.Region(0, view.size())))
         vim.init_done()
         # view.set_read_only(False)
@@ -104,6 +105,9 @@ class ActualVim(ViewMeta):
             self.view.close()
             self.vim.close()
 
+    def set_path(self, path):
+        self.vim.set_path(path)
+
 class ActualKeypress(sublime_plugin.TextCommand):
     def run(self, edit, key):
         v = ActualVim.get(self.view, exact=False)
@@ -174,6 +178,10 @@ class ActualListener(sublime_plugin.EventListener):
         if v:
             v.close(view)
 
+    def on_post_save_async(self, view):
+        v = ActualVim.get(view, create=False)
+        if v:
+            v.set_path(view.file_name())
 
 class ActualPanel:
     def __init__(self, actual):
