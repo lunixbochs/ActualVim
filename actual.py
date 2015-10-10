@@ -111,9 +111,31 @@ class ActualVim(ViewMeta):
 class ActualKeypress(sublime_plugin.TextCommand):
     def run(self, edit, key):
         v = ActualVim.get(self.view, exact=False)
-        if v and v.actual:
-            v.vim.press(key)
+        exit_insert_mode_keys = ["escape", "ctrl+C", "ctrl+["]
+        if key in exit_insert_mode_keys:
+            settings = sublime.load_settings("actual.sublime-settings")
+            if v.vim.mode == "i" and settings.get("insert_lock", False):
+			    #Do not send esc, ctrl-c, ctrl-[
+                pass
+            else:
+                if v and v.actual:
+                    v.vim.press(key)
+        else: 
+            if v and v.actual:
+                v.vim.press(key)
 
+class ToggleInsertLock(sublime_plugin.ApplicationCommand):
+	settings = sublime.load_settings("actual.sublime-settings")
+
+	def run(self, setting):
+		self.settings.set(setting, not self.settings.get(setting))
+		sublime.save_settings("actual.sublime-settings")
+		
+	def is_checked(self, setting):
+		if self.settings.get(setting):
+			return True
+		else:
+			return False
 
 class ActualListener(sublime_plugin.EventListener):
     def on_new_async(self, view):
