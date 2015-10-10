@@ -6,9 +6,9 @@ import sublime
 import sublime_plugin
 
 try:
-    sublime.edit_storage
+    sublime.actualvim_edit_storage
 except AttributeError:
-    sublime.edit_storage = {}
+    sublime.actualvim_edit_storage = {}
 
 def run_callback(func, *args, **kwargs):
     spec = inspect.getfullargspec(func)
@@ -134,10 +134,10 @@ class Edit:
             view.end_edit(edit)
         else:
             key = str(hash(tuple(self.steps)))
-            sublime.edit_storage[key] = self.run
-            view.run_command('apply_edit', {'key': key})
+            sublime.actualvim_edit_storage[key] = self.run
+            view.run_command('apply_actualvim_edit', {'key': key})
 
 
-class apply_edit(sublime_plugin.TextCommand):
+class apply_actualvim_edit(sublime_plugin.TextCommand):
     def run(self, edit, key):
-        sublime.edit_storage.pop(key)(self.view, edit)
+        sublime.actualvim_edit_storage.pop(key)(self.view, edit)
