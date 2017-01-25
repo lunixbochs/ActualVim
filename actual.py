@@ -6,6 +6,7 @@ from .view import ViewMeta
 from .vim import Vim, VISUAL_MODES
 
 
+
 class ActualVim(ViewMeta):
     def __init__(self, view):
         super().__init__(view)
@@ -122,51 +123,54 @@ class ActualListener(sublime_plugin.EventListener):
     def on_load(self, view):
         ActualVim.get(view)
 
-    def on_selection_modified_async(self, view):
-        v = ActualVim.get(view, create=False)
-        if v and v.actual:
-            if not v.sel_changed():
-                return
+    def on_post_text_command(self,view, command_name,args):
+        if command_name == "drag_select":
+            v = ActualVim.get(view, create=False)
+            if v and v.actual:
+                if not v.sel_changed():
+                    return
 
-            sel = view.sel()
-            if not sel:
-                return
+                sel = view.sel()
+                if not sel:
+                    return
 
-            vim = v.vim
-            sel = sel[0]
-            def cursor(args):
-                buf, lnum, col, off = [int(a) for a in args.split(' ')]
-                # see if we changed selection on Sublime's side
-                if vim.mode in VISUAL_MODES:
-                    start = vim.visual
-                    end = lnum, col + 1
-                    region = v.visual(vim.mode, start, end)[0]
-                    if (sel.a, sel.b) == region:
+                vim = v.vim
+                sel = sel[0]
+                def cursor(args):
+                    buf, lnum, col, off = [int(a) for a in args.split(' ')]
+                    # see if we changed selection on Sublime's side
+                    if vim.mode in VISUAL_MODES:
+                        start = vim.visual
+                        end = lnum, col + 1
+                        region = v.visual(vim.mode, start, end)[0]
+                        if (sel.a, sel.b) == region:
+                            return
+
+                    if off == sel.b or off > view.size():
                         return
 
-                if off == sel.b or off > view.size():
-                    return
+                    # selection didn't match Vim's, so let's change Vim's.
+                    if sel.b == sel.a:
+                        if vim.mode in VISUAL_MODES:
+                            # vim.type('{}go'.format(sel.b))
+                            vim.press('escape')
 
-                # selection didn't match Vim's, so let's change Vim's.
-                if sel.b == sel.a:
-                    if vim.mode in VISUAL_MODES:
-                        # vim.type('{}go'.format(sel.b))
-                        vim.press('escape')
-
-                    vim.set_cursor(sel.b, callback=vim.update_cursor)
-                else:
-                    # this is currently broken
-                    return
-                    if vim.mode != 'n':
-                        vim.press('escape')
-                    a, b = sel.a, sel.b
-                    if b > a:
-                        a += 1
+                        vim.set_cursor(sel.b, callback=vim.update_cursor)
                     else:
-                        b += 1
-                    vim.type('{}gov{}go'.format(a, b))
+                        # this is currently broken
+                        return
+                        if vim.mode != 'n':
+                            vim.press('escape')
+                        a, b = sel.a, sel.b
+                        if b > a:
+                            a += 1
+                        else:
+                            b += 1
+                        vim.type('{}gov{}go'.format(a, b))
 
-            vim.get_cursor(cursor)
+                vim.get_cursor(cursor)
+
+
 
     def on_modified(self, view):
         v = ActualVim.get(view, create=False)
