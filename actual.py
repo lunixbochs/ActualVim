@@ -3,8 +3,34 @@ import sublime_plugin
 
 from .edit import Edit
 from .view import ViewMeta
-from .vim import Vim, VISUAL_MODES
 
+from .lib import neovim
+
+NEOVIM_PATH = '/usr/local/bin/nvim'
+
+
+KEYMAP = {
+    'backspace': '\b',
+    'enter': '\n',
+    'escape': '\033',
+    'space': ' ',
+    'tab': '\t',
+    'up': '\033[A',
+    'down': '\033[B',
+    'right': '\033[C',
+    'left': '\033[D',
+}
+
+def keymap(key):
+    if '+' in key and key != '+':
+        mods, key = key.rsplit('+', 1)
+        mods = mods.split('+')
+        if mods == ['ctrl']:
+            b = ord(key)
+            if b >= 63 and b < 96:
+                return chr((b - 64) % 128)
+
+    return KEYMAP.get(key, key)
 
 class ActualVim(ViewMeta):
     def __init__(self, view):
@@ -14,10 +40,10 @@ class ActualVim(ViewMeta):
 
         view.settings().set('actual_intercept', True)
         view.settings().set('actual_mode', True)
-        self.vim = vim = Vim(view, update=self.update, modify=self.modify)
-        vim.set_path(view.file_name())
-        vim.insert(0, view.substr(sublime.Region(0, view.size())))
-        vim.init_done()
+        self.vim = vim = neovim.attach('child', argv=[NEOVIM_PATH, '--embed'])
+        # vim.set_path(view.file_name())
+        # vim.insert(0, view.substr(sublime.Region(0, view.size())))
+        # vim.init_done()
         # view.set_read_only(False)
 
         self.output = None
@@ -25,76 +51,6 @@ class ActualVim(ViewMeta):
     @property
     def actual(self):
         return self.view and self.view.settings().get('actual_mode')
-
-    def monitor(self):
-        if self.output:
-            return
-
-        window = sublime.active_window()
-        self.output = output = window.new_file()
-        ActualVim.views[output.id()] = self
-
-        output.settings().set('actual_proxy', True)
-        output.set_read_only(True)
-        output.set_scratch(True)
-        output.set_name('(tty)')
-        output.settings().set('actual_intercept', True)
-        output.settings().set('actual_mode', True)
-
-        with Edit(output) as edit:
-            edit.insert(0, self.vim.tty.dump())
-        self.vim.monitor = output
-
-        # move the monitor view to a different group
-        if window.num_groups() > 1:
-            target = int(not window.active_group())
-            window.set_view_index(output, target, 0)
-
-    def update(self, vim, dirty, moved):
-        mode = vim.mode
-        view = vim.view
-        tty = vim.tty
-
-        if vim.cmdline:
-            view.set_status('actual', vim.cmdline)
-        else:
-            view.erase_status('actual')
-
-        if tty.row == tty.rows and tty.col > 0:
-            char = tty.buf[tty.row - 1][0]
-            if char in ':/':
-                if vim.panel:
-                    # we already have a panel
-                    panel = vim.panel.panel
-                    with Edit(panel) as edit:
-                        edit.replace(sublime.Region(0, panel.size()), vim.cmdline)
-                else:
-                    # vim is prompting for input
-                    row, col = (tty.row - 1, tty.col - 1)
-                    vim.panel = ActualPanel(self)
-                    vim.panel.show(char)
-                return
-        elif vim.panel:
-            vim.panel.close()
-            vim.panel = None
-
-        if mode in VISUAL_MODES:
-            def select():
-                v = ActualVim.get(view)
-                start = vim.visual
-                end = (vim.row, vim.col)
-                regions = v.visual(vim.mode, start, end)
-                view.sel().clear()
-                for r in regions:
-                    view.sel().add(sublime.Region(*r))
-
-            Edit.defer(view, select)
-            return
-        else:
-            vim.update_cursor()
-
-    def modify(self, vim):
-        pass
 
     def close(self, view):
         if self.output:
@@ -106,13 +62,19 @@ class ActualVim(ViewMeta):
             self.vim.close()
 
     def set_path(self, path):
+        return
         self.vim.set_path(path)
 
 class ActualKeypress(sublime_plugin.TextCommand):
     def run(self, edit, key):
         v = ActualVim.get(self.view, exact=False)
         if v and v.actual:
-            v.vim.press(key)
+            # TODO: move these to better places
+            key = keymap(key)
+            v.vim.input(key)
+            buf = '\n'.join(v.vim.current.buffer[:])
+            with Edit(self.view) as edit:
+                edit.replace(sublime.Region(0, self.view.size()), buf)
 
 
 class ActualListener(sublime_plugin.EventListener):
@@ -124,6 +86,7 @@ class ActualListener(sublime_plugin.EventListener):
 
     def on_selection_modified_async(self, view):
         v = ActualVim.get(view, create=False)
+        return
         if v and v.actual:
             if not v.sel_changed():
                 return
@@ -169,6 +132,7 @@ class ActualListener(sublime_plugin.EventListener):
             vim.get_cursor(cursor)
 
     def on_modified(self, view):
+        return
         v = ActualVim.get(view, create=False)
         if v:
             v.sel_changed()
