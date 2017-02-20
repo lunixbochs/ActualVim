@@ -21,7 +21,7 @@ Usage
 
 This plugin relies on Vim itself, and operating system features not found in Windows. Thats means it's likely to only work in Linux and OS X for the near future. It's only been tested with an unmodified copy of Vim 7.4 on OS X 10.8 thus far.
 
-Just clone this to `Sublime Text 3/Packages/actualvim/`
+Just clone this to the path found in "Preferences -> Browse Packages..." or sublime.packages_path() - for macOS, it's usually `~/Library/Application Support/Sublime Text 3/Packages/actualvim/`
 
 Actual will launch a controlling instance of Vim for every Sublime Text view you open.
 
