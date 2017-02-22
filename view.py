@@ -107,6 +107,7 @@ class ActualVim(ViewMeta):
 
         self.buf = None
         self.changes = None
+        self.block = False
 
     @classmethod
     def reload_classes(cls):
@@ -142,11 +143,13 @@ class ActualVim(ViewMeta):
         wide = (mode not in neo.INSERT_MODES + neo.VISUAL_MODES)
         self.view.settings().set('inverse_caret_state', wide)
 
-    def sync_to_vim(self):
-        if not self.changed:
+    def sync_to_vim(self, force=False):
+        if self.block or not (self.changed or force):
             return
-        self.buf[:] = self.view.substr(sublime.Region(0, self.view.size())).split('\n')
-        self.sel_to_vim()
+
+        text = self.view.substr(sublime.Region(0, self.view.size())).split('\n')
+        self.buf[:] = text
+        self.sel_to_vim(force)
         self.changes = self.view.change_count()
 
     def sync_from_vim(self, edit=None):
@@ -160,7 +163,7 @@ class ActualVim(ViewMeta):
         self.changes = self.view.change_count()
         self.status_from_vim()
 
-    def sel_to_vim(self):
+    def sel_to_vim(self, force=False):
         # defensive, could affect perf
         self.activate()
 

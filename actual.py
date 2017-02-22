@@ -44,15 +44,40 @@ class ActualViewListener(sublime_plugin.ViewEventListener):
     def on_modified(self):
         self.v.sync_to_vim()
 
-    def on_close(self):
-        self.v.close(view)
-
     def on_post_save_async(self):
         self.v.set_path(view.file_name())
-
 
 class ActualGlobalListener(sublime_plugin.EventListener):
     def on_pre_close(self, view):
         v = ActualVim.get(view, create=False)
         if v:
             v.close()
+
+    # block sublime -> vim copies during text commands
+    # to prevent inconsistent updates
+    # then force a copy afterwards
+    def on_text_command(self, view, name, args):
+        v = ActualVim.get(view, create=False)
+        if not v:
+            return
+
+        if not name.startswith('actual_'):
+            v.block = True
+
+    def on_window_command(self, view, name, args):
+        self.on_text_command(view, name, args)
+
+    def on_post_text_command(self, view, name, args):
+        v = ActualVim.get(view, create=False)
+        if not v:
+            return
+
+        if v.block:
+            v.block = False
+            def fix():
+                v.sync_to_vim(force=True)
+            sublime.set_timeout(fix, 1)
+            return
+
+    def on_post_window_command(self, view, name, args):
+        self.on_post_text_command(view, name, args)
