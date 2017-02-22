@@ -37,31 +37,3 @@ class ActualListener(sublime_plugin.EventListener):
         v = ActualVim.get(view, create=False)
         if v:
             v.set_path(view.file_name())
-
-
-class ActualPanel:
-    def __init__(self, actual):
-        self.actual = actual
-        self.vim = actual.vim
-        self.view = actual.view
-        self.panel = None
-
-    def close(self):
-        if self.panel:
-            self.panel.close()
-
-    def show(self, char):
-        window = self.view.window()
-        self.panel = window.show_input_panel('Vim', char, self.on_done, None, self.on_cancel)
-        settings = self.panel.settings()
-        settings.set('actual_intercept', True)
-        settings.set('actual_proxy', self.view.id())
-        ActualVim.views[self.panel.id()] = self.actual
-
-    def on_done(self, text):
-        self.vim.press('enter')
-        self.vim.panel = None
-
-    def on_cancel(self):
-        self.vim.press('escape')
-        self.vim.panel = None
