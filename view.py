@@ -106,6 +106,7 @@ class ActualVim(ViewMeta):
             view.settings().set(k, v)
 
         self.buf = None
+        self.changes = None
 
     @classmethod
     def reload_classes(cls):
@@ -123,12 +124,15 @@ class ActualVim(ViewMeta):
     def actual(self):
         return self.view and self.view.settings().get('actual_mode')
 
+    @property
+    def changed(self):
+        return self.changes == self.view.change_count()
+
     def activate(self):
         # first activate
         if self.buf is None:
             self.buf = neo.vim.buf_new()
-            self.buf[:] = self.view.substr(sublime.Region(0, self.view.size())).split('\n')
-            self.sel_to_vim()
+            self.sync_to_vim()
 
         neo.vim.buf_activate(self.buf)
 
@@ -138,10 +142,18 @@ class ActualVim(ViewMeta):
         self.view.settings().set('inverse_caret_state', wide)
 
     def sync_to_vim(self):
-        pass
+        self.buf[:] = self.view.substr(sublime.Region(0, self.view.size())).split('\n')
+        self.sel_to_vim()
 
     def sync_from_vim(self, edit=None):
-        pass
+        # TODO: global UI change is GROSS, do deltas if possible
+        text = '\n'.join(self.buf[:])
+        everything = sublime.Region(0, self.view.size())
+        if self.view.substr(everything) != text:
+            with Edit(self.view) as edit:
+                edit.replace(everything, text)
+        self.sel_from_vim()
+        self.changes = self.view.change_count() + 1
 
     def sel_to_vim(self):
         # defensive, could affect perf
@@ -187,14 +199,7 @@ class ActualVim(ViewMeta):
 
         neo.vim.press(key)
         # TODO: trigger UI update on vim event, not here
-        # TODO: global UI change is GROSS, do deltas if possible
-        text = '\n'.join(self.buf[:])
-        everything = sublime.Region(0, self.view.size())
-        if self.view.substr(everything) != text:
-            with Edit(self.view) as edit:
-                edit.replace(everything, text)
-
-        self.sel_from_vim()
+        self.sync_from_vim()
 
         # (trigger this somewhere else? vim mode change callback?)
         self.update_caret()
