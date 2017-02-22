@@ -4,10 +4,31 @@ import sublime_plugin
 from .view import ActualVim
 
 
+# TODO: use a setting?
+class ActualEnable(sublime_plugin.ApplicationCommand):
+    def is_enabled(self):
+        return not ActualVim.enabled
+
+    def run(self):
+        ActualVim.enable()
+
+
+class ActualDisable(sublime_plugin.ApplicationCommand):
+    def is_enabled(self):
+        return ActualVim.enabled
+
+    def run(self):
+        ActualVim.enable(False)
+
+
 class ActualKeypress(sublime_plugin.TextCommand):
+    def is_enabled(self):
+        v = ActualVim.get(self.view, exact=False, create=False)
+        return bool(v)
+
     def run(self, edit, key):
         v = ActualVim.get(self.view, exact=False, create=False)
-        if v and v.actual:
+        if v:
             v.press(key)
 
 
@@ -19,9 +40,9 @@ class ActualViewListener(sublime_plugin.ViewEventListener):
             not settings.get('scratch'),
         ))
 
-    def __init__(self, view):
-        self.view = view
-        self.v = ActualVim.get(view)
+    @property
+    def v(self):
+        return ActualVim.get(self.view)
 
     def on_new(self):
         # vim buffer only gets created when we call activate()

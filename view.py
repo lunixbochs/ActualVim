@@ -17,7 +17,29 @@ except NameError:
     _views = {}
 
 
-class ViewMeta:
+class ActualVim:
+    # TODO: use a setting?
+    enabled = True
+
+    def __init__(self, view):
+        if view.settings().get('actual_proxy'):
+            return
+
+        self.view = view
+        self.last_sel = None
+        self.buf = None
+        self.changes = None
+        self.block = False
+
+        s = {
+            'actual_intercept': True,
+            'actual_mode': True,
+            # it's most likely a buffer will start in command mode
+            'inverse_caret_state': True,
+        }
+        for k, v in s.items():
+            view.settings().set(k, v)
+
     @classmethod
     def get(cls, view, create=True, exact=True):
         vid = view.id()
@@ -32,11 +54,33 @@ class ViewMeta:
         elif m and exact and m.view != view:
             return None
 
-        return m
+        if m:
+            return m
 
-    def __init__(self, view):
-        self.view = view
-        self.last_sel = None
+    @classmethod
+    def reload_classes(cls):
+        # reload classes by creating a new blank instance without init and overlaying dicts
+        for vid, view in _views.items():
+            new = cls.__new__(cls)
+            nd = {}
+            # copy view dict first to get attrs, new second to get methods
+            nd.update(view.__dict__)
+            nd.update(new.__dict__)
+            new.__dict__.update(nd)
+            _views[vid] = new
+
+    @classmethod
+    def enable(cls, enable=True):
+        cls.enabled = enable
+        for av in _views.values():
+            settings = av.view.settings()
+            settings.set('actual_intercept', enable)
+            settings.set('actual_mode', enable)
+            av.update_caret()
+
+    @property
+    def actual(self):
+        return self.view and self.view.settings().get('actual_mode')
 
     def sel_changed(self):
         new_sel = copy_sel(self.view)
@@ -90,41 +134,6 @@ class ViewMeta:
 
         return [sublime.Region(*r) for r in regions]
 
-class ActualVim(ViewMeta):
-    def __init__(self, view):
-        super().__init__(view)
-        if view.settings().get('actual_proxy'):
-            return
-
-        s = {
-            'actual_intercept': True,
-            'actual_mode': True,
-            # it's most likely a buffer will start in command mode
-            'inverse_caret_state': True,
-        }
-        for k, v in s.items():
-            view.settings().set(k, v)
-
-        self.buf = None
-        self.changes = None
-        self.block = False
-
-    @classmethod
-    def reload_classes(cls):
-        # reload classes by creating a new blank instance without init and overlaying dicts
-        for vid, view in _views.items():
-            new = cls.__new__(cls)
-            nd = {}
-            # copy view dict first to get attrs, new second to get methods
-            nd.update(view.__dict__)
-            nd.update(new.__dict__)
-            new.__dict__.update(nd)
-            _views[vid] = new
-
-    @property
-    def actual(self):
-        return self.view and self.view.settings().get('actual_mode')
-
     @property
     def changed(self):
         return self.changes is None or self.changes < self.view.change_count()
@@ -139,8 +148,10 @@ class ActualVim(ViewMeta):
         self.status_from_vim()
 
     def update_caret(self):
-        mode = neo.vim.mode
-        wide = (mode not in neo.INSERT_MODES + neo.VISUAL_MODES)
+        wide = False
+        if self.actual:
+            mode = neo.vim.mode
+            wide = (mode not in neo.INSERT_MODES + neo.VISUAL_MODES)
         self.view.settings().set('inverse_caret_state', wide)
 
     def sync_to_vim(self, force=False):
@@ -153,6 +164,8 @@ class ActualVim(ViewMeta):
         self.changes = self.view.change_count()
 
     def sync_from_vim(self, edit=None):
+        if not self.actual:
+            return
         # TODO: global UI change is GROSS, do deltas if possible
         text = '\n'.join(self.buf[:])
         everything = sublime.Region(0, self.view.size())
@@ -184,6 +197,9 @@ class ActualVim(ViewMeta):
             self.update_caret()
 
     def sel_from_vim(self, edit=None):
+        if not self.actual:
+            return
+
         a, b = neo.vim.sel
         new_sel = self.visual(neo.vim.mode, a, b)
 

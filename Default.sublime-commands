@@ -1,0 +1,17 @@
+[
+    {
+        "caption": "ActualVim: Enable",
+        "command": "actual_enable",
+    },
+    {
+        "caption": "ActualVim: Disable",
+        "command": "actual_disable",
+    },
+/*
+// technically still possible
+    {
+        "caption": "ActualVim: Monitor TTY",
+        "command": "actual_monitor"
+    }
+*/
+]
