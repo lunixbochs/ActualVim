@@ -21,12 +21,12 @@ class ActualListener(sublime_plugin.EventListener):
     def on_selection_modified_async(self, view):
         v = ActualVim.get(view, create=False)
         if v:
-            v.sel_changed()
+            pass
 
     def on_modified(self, view):
         v = ActualVim.get(view, create=False)
         if v:
-            v.sel_changed()
+            pass
 
     def on_close(self, view):
         v = ActualVim.get(view, create=False)
