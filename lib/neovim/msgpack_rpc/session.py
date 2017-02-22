@@ -1,6 +1,7 @@
 """Synchronous msgpack-rpc session layer."""
 import logging
 from collections import deque
+from queue import Queue
 
 from traceback import format_exc
 
@@ -89,7 +90,11 @@ class Session(object):
             raise ValueError("request got unsupported keyword argument(s): {}"
                              .format(', '.join(kwargs.keys())))
 
-        v = self._blocking_request(method, args)
+        if self._is_running:
+            v = self._yielding_request(method, args)
+        else:
+            v = self._blocking_request(method, args)
+
         if not v:
             # EOF
             raise IOError('EOF')
@@ -140,6 +145,16 @@ class Session(object):
         """Stop the event loop."""
         self._async_session.stop()
 
+    def _yielding_request(self, method, args):
+        q = Queue()
+
+        def response_cb(err, rv):
+            q.put((err, rv))
+
+        self._async_session.request(method, args, response_cb)
+        # FIXME timeout is to avoid hang
+        return q.get(timeout=1)
+
     def _blocking_request(self, method, args):
         result = []
 
@@ -170,8 +185,7 @@ class Session(object):
         def handler():
             try:
                 rv = self._request_cb(name, args)
-                debug('greenlet %s finished executing, ' +
-                      'sending %s as response', gr, rv)
+                debug('sending %s as response', rv)
                 response.send(rv)
             except ErrorResponse as err:
                 warn("error response from request '%s %s': %s", name,
@@ -181,7 +195,6 @@ class Session(object):
                 warn("error caught while processing request '%s %s': %s", name,
                      args, format_exc())
                 response.send(repr(err) + "\n" + format_exc(5), error=True)
-            debug('greenlet %s is now dying...', gr)
 
         # Create a new greenlet to handle the request
         spawn_thread(handler)
@@ -191,12 +204,9 @@ class Session(object):
         def handler():
             try:
                 self._notification_cb(name, args)
-                debug('greenlet %s finished executing', gr)
             except Exception:
                 warn("error caught while processing notification '%s %s': %s",
                      name, args, format_exc())
-
-            debug('greenlet %s is now dying...', gr)
 
         spawn_thread(handler)
         debug('received rpc notification, thread will handle it')

@@ -1,5 +1,6 @@
 """Asynchronous msgpack-rpc handling in the event loop pipeline."""
 import logging
+import threading
 from traceback import format_exc
 
 
@@ -22,6 +23,7 @@ class AsyncSession(object):
         self._next_request_id = 1
         self._pending_requests = {}
         self._request_cb = self._notification_cb = None
+        self._lock = threading.Lock()
         self._handlers = {
             0: self._on_request,
             1: self._on_response,
@@ -39,10 +41,11 @@ class AsyncSession(object):
         Nvim. The `response_cb` function is called with when the response
         is available.
         """
-        request_id = self._next_request_id
-        self._next_request_id = request_id + 1
-        self._msgpack_stream.send([0, request_id, method, args])
-        self._pending_requests[request_id] = response_cb
+        with self._lock:
+            request_id = self._next_request_id
+            self._next_request_id = request_id + 1
+            self._msgpack_stream.send([0, request_id, method, args])
+            self._pending_requests[request_id] = response_cb
 
     def notify(self, method, args):
         """Send a msgpack-rpc notification to Nvim.
@@ -93,7 +96,8 @@ class AsyncSession(object):
         #   - msg[2]: error(if any)
         #   - msg[3]: result(if not errored)
         debug('received response: %s, %s', msg[2], msg[3])
-        self._pending_requests.pop(msg[1])(msg[2], msg[3])
+        with self._lock:
+            self._pending_requests.pop(msg[1])(msg[2], msg[3])
 
     def _on_notification(self, msg):
         # notification/event
