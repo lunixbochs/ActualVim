@@ -21,25 +21,38 @@ class Screen:
     def resize(self, w, h):
         self.w = w
         self.h = h
+        # TODO: should resize clear?
         self.screen = [[''] * w for i in range(h)]
+        self.scroll_region = [0, self.h, 0, self.w]
 
     def clear(self):
         self.resize(self.w, self.h)
+
+    def scroll(self, dy):
+        ya, yb = self.scroll_region[0:2]
+        xa, xb = self.scroll_region[2:4]
+        yi = (ya, yb)
+        if dy < 0:
+            yi = (yb, ya - 1)
+
+        for y in range(yi[0], yi[1], int(dy / abs(dy))):
+            if ya <= y + dy < yb:
+                self.screen[y][xa:xb] = self.screen[y + dy][xa:xb]
+            else:
+                self.screen[y][xa:xb] = [' '] * (xb - xa)
 
     def redraw(self, updates):
         blacklist = [
             'mode_change',
             'bell', 'mouse_on', 'highlight_set',
             'update_fb', 'update_bg', 'update_sp', 'clear',
-            'scroll', 'set_scroll_region',
         ]
         for cmd in updates:
             name, args = cmd[0], cmd[1:]
             if name == 'cursor_goto':
                 self.y, self.x = args[0]
             elif name == 'eol_clear':
-                self.x = 0
-                self.y += 1
+                self.screen[self.y][self.x:] = [' '] * (self.w - self.x)
             elif name == 'put':
                 for cs in args:
                     for c in cs:
@@ -49,8 +62,20 @@ class Screen:
                 self.resize(*args[0])
             elif name in blacklist:
                 pass
+            elif name == 'set_scroll_region':
+                self.scroll_region = args[0]
+            elif name == 'scroll':
+                self.scroll(args[0][0])
             # else:
             #     print('unknown update cmd', name)
+        # if updates:
+        #     print(updates)
+        #     self.p()
+
+    def p(self):
+        print('-' * self.w)
+        print(str(self))
+        print('-' * self.w)
 
     def __setitem__(self, xy, c):
         x, y = xy
@@ -152,6 +177,10 @@ class Vim:
     @property
     def mode(self):
         return self.eval('mode()')
+
+    @property
+    def status_line(self):
+        return self.screen[-1].strip()
 
 if 'vim' in globals():
     new = Vim(vim.nv)

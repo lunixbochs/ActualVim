@@ -135,6 +135,7 @@ class ActualVim(ViewMeta):
             self.sync_to_vim()
 
         neo.vim.buf_activate(self.buf)
+        self.status_from_vim()
 
     def update_caret(self):
         mode = neo.vim.mode
@@ -157,6 +158,7 @@ class ActualVim(ViewMeta):
                 edit.replace(everything, text)
         self.sel_from_vim()
         self.changes = self.view.change_count()
+        self.status_from_vim()
 
     def sel_to_vim(self):
         # defensive, could affect perf
@@ -192,6 +194,13 @@ class ActualVim(ViewMeta):
             Edit.defer(self.view, select)
         else:
             edit.callback(select)
+
+    def status_from_vim(self):
+        status = neo.vim.status_line
+        if status:
+            self.view.set_status('actual', status)
+        else:
+            self.view.erase_status('actual')
 
     def press(self, key):
         # TODO: can we ever reach here without being the active buffer?
