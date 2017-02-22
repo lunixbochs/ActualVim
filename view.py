@@ -176,7 +176,7 @@ class ActualVim(ViewMeta):
             self.view.close()
 
     def set_path(self, path):
-        return
+        self.buf.name = path
 
 
 class ActualPanel:
