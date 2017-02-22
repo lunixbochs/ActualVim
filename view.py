@@ -4,29 +4,6 @@ import traceback
 from . import neo
 from .edit import Edit
 
-KEYMAP = {
-    'backspace': '\b',
-    'enter': '\n',
-    'escape': '\033',
-    'space': ' ',
-    'tab': '\t',
-    'up': '\033[A',
-    'down': '\033[B',
-    'right': '\033[C',
-    'left': '\033[D',
-}
-
-def keymap(key):
-    if '+' in key and key != '+':
-        mods, key = key.rsplit('+', 1)
-        mods = mods.split('+')
-        if mods == ['ctrl']:
-            b = ord(key)
-            if b >= 63 and b < 96:
-                return chr((b - 64) % 128)
-
-    return KEYMAP.get(key, key)
-
 
 def copy_sel(sel):
     if isinstance(sel, sublime.View):
@@ -208,7 +185,7 @@ class ActualVim(ViewMeta):
         if self.buf is None:
             return
 
-        neo.vim.press(keymap(key))
+        neo.vim.press(key)
         # TODO: trigger UI update on vim event, not here
         # TODO: global UI change is GROSS, do deltas if possible
         text = '\n'.join(self.buf[:])
