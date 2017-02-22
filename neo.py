@@ -40,7 +40,7 @@ class Vim:
         self.cmd('bw! {:d}'.format(buf.number))
 
     def press(self, key):
-        self.nv.input(key)
+        self.nv.feedkeys(self.nv.replace_termcodes(key))
 
     @property
     def sel(self):
@@ -60,13 +60,13 @@ class Vim:
             self.eval('cursor({:d}, {:d}, {:d})'.format(a[0], a[1], a[1]))
         else:
             b = add1(b)
-            # don't exit visual mode if we're already in it
-            # this prevents drag from flickering
-            if not self.mode in VISUAL_MODES:
-                # TODO: map key?
-                self.press('\033')
-                self.setpos('.', *a)
-                self.cmd('normal! v')
+
+            self.press('\033')
+            self.setpos('.', *a)
+            self.cmd('normal! v')
+            # fix right hand side alignment
+            if a < b:
+                b = [b[0], b[1] - 1]
             self.setpos('.', *b)
 
     @property
