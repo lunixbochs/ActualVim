@@ -59,7 +59,7 @@ class ViewMeta:
 
     def __init__(self, view):
         self.view = view
-        self.last_sel = copy_sel(view)
+        self.last_sel = None
 
     def sel_changed(self):
         new_sel = copy_sel(self.view)
@@ -70,8 +70,8 @@ class ViewMeta:
     def visual(self, mode, a, b):
         view = self.view
         regions = []
-        sr, sc = a[0] - 1, a[1] - 1
-        er, ec = b[0] - 1, b[1] - 1
+        sr, sc = a
+        er, ec = b
 
         a = view.text_point(sr, sc)
         b = view.text_point(er, ec)
@@ -93,7 +93,7 @@ class ViewMeta:
             else:
                 b += 1
             regions.append((a, b))
-        elif mode in ('^V', '\x16'):
+        elif mode == '\x16':
             # visual block mode
             left = min(sc, ec)
             right = max(sc, ec) + 1
@@ -119,13 +119,16 @@ class ActualVim(ViewMeta):
         if view.settings().get('actual_proxy'):
             return
 
-        view.settings().set('actual_intercept', True)
-        view.settings().set('actual_mode', True)
+        s = {
+            'actual_intercept': True,
+            'actual_mode': True,
+            # it's most likely a buffer will start in command mode
+            'inverse_caret_state': True,
+        }
+        for k, v in s.items():
+            view.settings().set(k, v)
 
-        self.buf = neo.vim.buf_new()
-        # TODO: set cursor here?
-        self.buf[:] = view.substr(sublime.Region(0, view.size())).split('\n')
-        self.reselect()
+        self.buf = None
 
     @classmethod
     def reload_classes(cls):
@@ -144,16 +147,54 @@ class ActualVim(ViewMeta):
         return self.view and self.view.settings().get('actual_mode')
 
     def activate(self):
+        # first activate
+        if self.buf is None:
+            self.buf = neo.vim.buf_new()
+            self.buf[:] = self.view.substr(sublime.Region(0, self.view.size())).split('\n')
+            self.sel_to_vim()
+
         neo.vim.buf_activate(self.buf)
 
-    def reselect(self, edit=None):
-        mode, a, b = neo.vim.sel
-        regions = self.visual(mode, a, b)
+    def update_caret(self):
+        mode = neo.vim.mode
+        wide = (mode not in neo.INSERT_MODES + neo.VISUAL_MODES)
+        self.view.settings().set('inverse_caret_state', wide)
+
+    def sync_to_vim(self):
+        pass
+
+    def sync_from_vim(self, edit=None):
+        pass
+
+    def sel_to_vim(self):
+        # defensive, could affect perf
+        self.activate()
+
+        if self.sel_changed():
+            # single selection for now...
+            # TODO: block
+            # TODO multiple select vim plugin integration
+            sel = self.view.sel()[0]
+            vim = neo.vim
+            b = self.view.rowcol(sel.b)
+            if sel.b == sel.a:
+                vim.select(b)
+            else:
+                a = self.view.rowcol(sel.a)
+                vim.select(a, b)
+
+            self.sel_from_vim()
+            self.update_caret()
+
+    def sel_from_vim(self, edit=None):
+        a, b = neo.vim.sel
+        new_sel = self.visual(neo.vim.mode, a, b)
 
         def select():
             sel = self.view.sel()
             sel.clear()
-            sel.add_all(regions)
+            sel.add_all(new_sel)
+            self.sel_changed()
 
         if edit is None:
             Edit.defer(self.view, select)
@@ -161,19 +202,29 @@ class ActualVim(ViewMeta):
             edit.callback(select)
 
     def press(self, key):
+        # TODO: can we ever reach here without being the active buffer?
+        # defensive, could affect perf
         self.activate()
+        if self.buf is None:
+            return
+
         neo.vim.press(keymap(key))
         # TODO: trigger UI update on vim event, not here
+        # TODO: global UI change is GROSS, do deltas if possible
         text = '\n'.join(self.buf[:])
+        everything = sublime.Region(0, self.view.size())
+        if self.view.substr(everything) != text:
+            with Edit(self.view) as edit:
+                edit.replace(everything, text)
 
-        with Edit(self.view) as edit:
-            edit.replace(sublime.Region(0, self.view.size()), text)
-            self.reselect(edit)
+        self.sel_from_vim()
 
-    def close(self, view):
-        if view == self.view:
+        # (trigger this somewhere else? vim mode change callback?)
+        self.update_caret()
+
+    def close(self):
+        if self.buf is not None:
             neo.vim.buf_close(self.buf)
-            self.view.close()
 
     def set_path(self, path):
         self.buf.name = path
