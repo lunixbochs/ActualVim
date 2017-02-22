@@ -1,4 +1,5 @@
 import contextlib
+import threading
 
 from .lib import neovim
 from .lib import util
@@ -11,13 +12,93 @@ INSERT_MODES = ['i']
 VISUAL_MODES = ['V', 'v', '\x16']
 
 
+class Screen:
+    def __init__(self):
+        self.x = 0
+        self.y = 0
+        self.resize(1, 1)
+
+    def resize(self, w, h):
+        self.w = w
+        self.h = h
+        self.screen = [[''] * w for i in range(h)]
+
+    def clear(self):
+        self.resize(self.w, self.h)
+
+    def redraw(self, updates):
+        blacklist = [
+            'mode_change',
+            'bell', 'mouse_on', 'highlight_set',
+            'update_fb', 'update_bg', 'update_sp', 'clear',
+            'scroll', 'set_scroll_region',
+        ]
+        for cmd in updates:
+            name, args = cmd[0], cmd[1:]
+            if name == 'cursor_goto':
+                self.y, self.x = args[0]
+            elif name == 'eol_clear':
+                self.x = 0
+                self.y += 1
+            elif name == 'put':
+                for cs in args:
+                    for c in cs:
+                        self[self.x, self.y] = c
+                        self.x += 1
+            elif name == 'resize':
+                self.resize(*args[0])
+            elif name in blacklist:
+                pass
+            # else:
+            #     print('unknown update cmd', name)
+
+    def __setitem__(self, xy, c):
+        x, y = xy
+        try:
+            self.screen[y][x] = c
+        except IndexError:
+            pass
+
+    def __getitem__(self, y):
+        return ''.join(self.screen[y])
+
+    def __str__(self):
+        return '\n'.join([self[y] for y in range(self.h)])
+
+
 class Vim:
     def __init__(self, nv=None):
         self.nv = nv
         if nv is None:
-            self.nv = neovim.attach('child', argv=[NEOVIM_PATH, '--embed'])
-            self.cmd('set noswapfile')
-            self.cmd('set hidden')
+            self.notif_cb = None
+            self.screen = Screen()
+
+    def _setup(self):
+        self.nv = neovim.attach('child', argv=[NEOVIM_PATH, '--embed'])
+        self._sem = threading.Semaphore(0)
+        self._thread = t = threading.Thread(target=self._event_loop)
+        t.daemon = True
+        t.start()
+
+        self._sem.acquire()
+        self.cmd('set noswapfile')
+        self.cmd('set hidden')
+        self.nv.ui_attach(80, 24, True)
+
+    def _event_loop(self):
+        def on_notification(method, updates):
+            if method == 'redraw':
+                vim.screen.redraw(updates)
+            if vim.notif_cb:
+                vim.notif_cb(method, updates)
+
+        def on_request(method, args):
+            raise NotImplemented
+
+        def on_setup():
+            self._sem.release()
+
+        self.nv.run_loop(on_request, on_notification, on_setup)
 
     def cmd(self, *args, **kwargs):
         return self.nv.command_output(*args, **kwargs)
@@ -73,7 +154,11 @@ class Vim:
     def mode(self):
         return self.eval('mode()')
 
-try:
-    vim = Vim(vim.nv)
-except NameError:
+if 'vim' in globals():
+    new = Vim(vim.nv)
+    new.notif_cb = vim.notif_cb
+    new.screen = vim.screen
+    vim = new
+else:
     vim = Vim()
+    vim._setup()
