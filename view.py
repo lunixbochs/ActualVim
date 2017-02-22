@@ -34,20 +34,24 @@ def copy_sel(sel):
     return [(r.a, r.b) for r in sel]
 
 
-class ViewMeta:
-    views = {}
+try:
+    _views
+except NameError:
+    _views = {}
 
+
+class ViewMeta:
     @classmethod
     def get(cls, view, create=True, exact=True):
         vid = view.id()
-        m = cls.views.get(vid)
+        m = _views.get(vid)
         if not m and create:
             try:
                 m = cls(view)
             except Exception:
                 traceback.print_exc()
                 return
-            cls.views[vid] = m
+            _views[vid] = m
         elif m and exact and m.view != view:
             return None
 
@@ -104,8 +108,10 @@ class ViewMeta:
                     a = view.text_point(i, left)
                     b = view.text_point(i, min(right, end))
                     regions.append((a, b))
+        else:
+            regions.append((a, b))
 
-        return regions
+        return [sublime.Region(*r) for r in regions]
 
 class ActualVim(ViewMeta):
     def __init__(self, view):
@@ -117,24 +123,37 @@ class ActualVim(ViewMeta):
         view.settings().set('actual_mode', True)
 
         self.buf = neo.vim.buf_new()
-        # TODO: cursor here?
+        # TODO: set cursor here?
         self.buf[:] = view.substr(sublime.Region(0, view.size())).split('\n')
         self.reselect()
-        # view.set_read_only(False)
+
+    @classmethod
+    def reload_classes(cls):
+        # reload classes by creating a new blank instance without init and overlaying dicts
+        for vid, view in _views.items():
+            new = cls.__new__(cls)
+            nd = {}
+            # copy view dict first to get attrs, new second to get methods
+            nd.update(view.__dict__)
+            nd.update(new.__dict__)
+            new.__dict__.update(nd)
+            _views[vid] = new
 
     @property
     def actual(self):
         return self.view and self.view.settings().get('actual_mode')
 
     def activate(self):
-        neo.vim.activate_buf(self.buf)
+        neo.vim.buf_activate(self.buf)
 
     def reselect(self, edit=None):
-        row, col = neo.vim.curpos()
+        mode, a, b = neo.vim.sel
+        regions = self.visual(mode, a, b)
+
         def select():
             sel = self.view.sel()
             sel.clear()
-            sel.add(sublime.Region(self.view.text_point(row, col)))
+            sel.add_all(regions)
 
         if edit is None:
             Edit.defer(self.view, select)
@@ -158,3 +177,5 @@ class ActualVim(ViewMeta):
 
     def set_path(self, path):
         return
+
+ActualVim.reload_classes()

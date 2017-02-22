@@ -18,12 +18,15 @@ class Vim:
     def cmd(self, *args, **kwargs):
         return self.nv.command_output(*args, **kwargs)
 
-    def eval(self, *args, **kwargs):
-        return self.nv.eval(*args, **kwargs)
+    def eval(self, *cmds):
+        if len(cmds) == 1:
+            return self.nv.eval(cmds[0])
+        else:
+            return [self.nv.eval(cmd) for cmd in cmds]
 
     # buffer methods
-    def activate_buf(self, buf):
-        self.cmd('b {:d}'.format(buf.number))
+    def buf_activate(self, buf):
+        self.cmd('b! {:d}'.format(buf.number))
 
     def buf_new(self):
         self.cmd('new')
@@ -36,9 +39,10 @@ class Vim:
     def press(self, key):
         self.nv.input(key)
 
-    def curpos(self):
-        a, b = self.eval("getcurpos()")[1:3]
-        return a - 1, b - 1
+    @property
+    def sel(self):
+        m, r1, c1, r2, c2 = self.eval('mode()', 'line(".")', 'col(".")', 'line("v")', 'col("v")')
+        return m, (r2, c2), (r1, c1)
 
 try:
     vim = Vim(vim.nv)
