@@ -1,6 +1,32 @@
 import sublime
 import traceback
 
+from . import neo
+from .edit import Edit
+
+KEYMAP = {
+    'backspace': '\b',
+    'enter': '\n',
+    'escape': '\033',
+    'space': ' ',
+    'tab': '\t',
+    'up': '\033[A',
+    'down': '\033[B',
+    'right': '\033[C',
+    'left': '\033[D',
+}
+
+def keymap(key):
+    if '+' in key and key != '+':
+        mods, key = key.rsplit('+', 1)
+        mods = mods.split('+')
+        if mods == ['ctrl']:
+            b = ord(key)
+            if b >= 63 and b < 96:
+                return chr((b - 64) % 128)
+
+    return KEYMAP.get(key, key)
+
 
 def copy_sel(sel):
     if isinstance(sel, sublime.View):
@@ -30,7 +56,6 @@ class ViewMeta:
     def __init__(self, view):
         self.view = view
         self.last_sel = copy_sel(view)
-        self.buf = ''
 
     def sel_changed(self):
         new_sel = copy_sel(self.view)
@@ -82,5 +107,54 @@ class ViewMeta:
 
         return regions
 
-    def size(self):
-        return len(self.buf)
+class ActualVim(ViewMeta):
+    def __init__(self, view):
+        super().__init__(view)
+        if view.settings().get('actual_proxy'):
+            return
+
+        view.settings().set('actual_intercept', True)
+        view.settings().set('actual_mode', True)
+
+        self.buf = neo.vim.buf_new()
+        # TODO: cursor here?
+        self.buf[:] = view.substr(sublime.Region(0, view.size())).split('\n')
+        self.reselect()
+        # view.set_read_only(False)
+
+    @property
+    def actual(self):
+        return self.view and self.view.settings().get('actual_mode')
+
+    def activate(self):
+        neo.vim.activate_buf(self.buf)
+
+    def reselect(self, edit=None):
+        row, col = neo.vim.curpos()
+        def select():
+            sel = self.view.sel()
+            sel.clear()
+            sel.add(sublime.Region(self.view.text_point(row, col)))
+
+        if edit is None:
+            Edit.defer(self.view, select)
+        else:
+            edit.callback(select)
+
+    def press(self, key):
+        self.activate()
+        neo.vim.press(keymap(key))
+        # TODO: trigger UI update on vim event, not here
+        text = '\n'.join(self.buf[:])
+
+        with Edit(self.view) as edit:
+            edit.replace(sublime.Region(0, self.view.size()), text)
+            self.reselect(edit)
+
+    def close(self, view):
+        if view == self.view:
+            neo.vim.buf_close(self.buf)
+            self.view.close()
+
+    def set_path(self, path):
+        return
