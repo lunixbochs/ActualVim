@@ -1,10 +1,25 @@
 import contextlib
+import os
+import sublime
+import sys
 import threading
 
 from .lib import neovim
 from .lib import util
 
 NEOVIM_PATH = util.which('nvim')
+if not NEOVIM_PATH and sys.platform == 'win32':
+    candidates = [
+        r'C:\Program Files\Neovim',
+        r'C:\Program Files (x86)\Neovim',
+        r'C:\Neovim',
+    ]
+    for c in candidates:
+        path = os.path.join(c, r'bin\nvim.exe')
+        if os.path.exists(path):
+            NEOVIM_PATH = path
+            break
+
 if not NEOVIM_PATH:
     raise Exception('cannot find nvim executable')
 

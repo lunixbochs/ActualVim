@@ -8,11 +8,11 @@ import sys
 from actualvim.lib.asyncio_inc import selectors
 
 if sys.platform == 'win32':
-    # Similar thing for _overlapped.
-    try:
-        from . import _overlapped
-    except ImportError:
-        import _overlapped  # Will also be exported.
+    import platform
+    if platform.architecture()[0] == '64bit':
+        from actualvim.lib.asyncio_inc.win64 import _overlapped
+    else:
+        from actualvim.lib.asyncio_inc.win32 import _overlapped
 
 # This relies on each of the submodules having an __all__ variable.
 from .base_events import *

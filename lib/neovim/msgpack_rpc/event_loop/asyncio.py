@@ -11,6 +11,7 @@ is a backport of `asyncio` that works on Python 2.6+.
 from __future__ import absolute_import
 
 import os
+import subprocess
 import sys
 from collections import deque
 
@@ -88,9 +89,15 @@ class AsyncioEventLoop(BaseEventLoop, asyncio.Protocol,
         self._loop.run_until_complete(coroutine)
 
     def _connect_child(self, argv):
-        self._child_watcher = asyncio.get_child_watcher()
-        self._child_watcher.attach_loop(self._loop)
-        coroutine = self._loop.subprocess_exec(self._fact, *argv)
+        startupinfo = None
+        if os.name == 'nt':
+            asyncio.set_event_loop(self._loop)
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        else:
+            self._child_watcher = asyncio.get_child_watcher()
+            self._child_watcher.attach_loop(self._loop)
+        coroutine = self._loop.subprocess_exec(self._fact, *argv, startupinfo=startupinfo)
         self._loop.run_until_complete(coroutine)
 
     def _start_reading(self):
