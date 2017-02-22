@@ -126,7 +126,7 @@ class ActualVim(ViewMeta):
 
     @property
     def changed(self):
-        return self.changes == self.view.change_count()
+        return self.changes is None or self.changes < self.view.change_count()
 
     def activate(self):
         # first activate
@@ -142,8 +142,11 @@ class ActualVim(ViewMeta):
         self.view.settings().set('inverse_caret_state', wide)
 
     def sync_to_vim(self):
+        if not self.changed:
+            return
         self.buf[:] = self.view.substr(sublime.Region(0, self.view.size())).split('\n')
         self.sel_to_vim()
+        self.changes = self.view.change_count()
 
     def sync_from_vim(self, edit=None):
         # TODO: global UI change is GROSS, do deltas if possible
@@ -153,7 +156,7 @@ class ActualVim(ViewMeta):
             with Edit(self.view) as edit:
                 edit.replace(everything, text)
         self.sel_from_vim()
-        self.changes = self.view.change_count() + 1
+        self.changes = self.view.change_count()
 
     def sel_to_vim(self):
         # defensive, could affect perf
