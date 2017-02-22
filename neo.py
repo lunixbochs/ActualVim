@@ -136,8 +136,7 @@ class Vim:
         a = add1(a)
         if b is None:
             if self.mode in VISUAL_MODES:
-                # TODO: map key?
-                self.press('\033')
+                self.press('<esc>')
             self.eval('cursor({:d}, {:d}, {:d})'.format(a[0], a[1], a[1]))
         else:
             b = add1(b)
