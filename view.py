@@ -11,12 +11,17 @@ def copy_sel(sel):
         sel = sel.sel()
     return [(r.a, r.b) for r in sel]
 
-def plugin_loaded():
+# called by neo.py once neovim is loaded
+def neovim_loaded():
     if enabled():
         ActualVim.enable()
+
         # force this through in case the event doesn't kick in
         # because we rely on activate() for everything to work
-        ActualVim.get(sublime.active_window().active_view()).activate()
+        av = ActualVim.get(sublime.active_window().active_view())
+        av.activate()
+        # TODO: cursor isn't adjusted here, not sure why
+        # (so if it's on a newline, it will stay there when caret switches)
 
 try:
     _views

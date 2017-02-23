@@ -42,6 +42,9 @@ def plugin_loaded():
         vim = Vim()
         vim._setup()
 
+        from .view import neovim_loaded
+        neovim_loaded()
+
 
 INSERT_MODES = ['i']
 VISUAL_MODES = ['V', 'v', '\x16']
