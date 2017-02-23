@@ -1,0 +1,25 @@
+[
+    {
+        "caption": "Preferences",
+        "mnemonic": "n",
+        "id": "preferences",
+        "children":
+        [
+            {
+                "caption": "Package Settings",
+                "mnemonic": "P",
+                "id": "package-settings",
+                "children":
+                [
+                    {
+                        "caption": "ActualVim Settings",
+                        "command": "open_file", "args":
+                        {
+                            "file": "${packages}/User/ActualVim.sublime-settings"
+                        },
+                    }
+                ]
+            }
+        ]
+    }
+]
