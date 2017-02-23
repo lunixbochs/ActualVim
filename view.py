@@ -16,10 +16,9 @@ try:
 except NameError:
     _views = {}
 
-
 class ActualVim:
-    # TODO: use a setting?
-    enabled = True
+    settings = sublime.load_settings('ActualVim.sublime-settings')
+    enabled = settings.get('enabled') or True
 
     def __init__(self, view):
         if view.settings().get('actual_proxy'):
@@ -72,11 +71,20 @@ class ActualVim:
     @classmethod
     def enable(cls, enable=True):
         cls.enabled = enable
+        settings = sublime.load_settings('ActualVim.sublime-settings')
+        settings.set('enabled', enable)
+        sublime.save_settings('ActualVim.sublime-settings')
+
         for av in _views.values():
             settings = av.view.settings()
             settings.set('actual_intercept', enable)
             settings.set('actual_mode', enable)
             av.update_caret()
+
+        av = cls.get(sublime.active_window().active_view(), create=False)
+        if av and av.actual:
+            av.sel_to_vim()
+            av.sel_from_vim()
 
     @property
     def actual(self):

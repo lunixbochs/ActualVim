@@ -1,10 +1,17 @@
+import json
+import os
 import sublime
 import sublime_plugin
 
 from .view import ActualVim
+from .edit import Edit
+
+DEFAULT_SETTINGS = {
+    'enabled': True,
+    'neovim_path': '',
+}
 
 
-# TODO: use a setting?
 class ActualEnable(sublime_plugin.ApplicationCommand):
     def is_enabled(self):
         return not ActualVim.enabled
@@ -69,6 +76,22 @@ class ActualViewListener(sublime_plugin.ViewEventListener):
         self.v.set_path(view.file_name())
 
 class ActualGlobalListener(sublime_plugin.EventListener):
+    def on_open_settings(self, view):
+        if view.file_name() and os.path.basename(view.file_name()) == 'ActualVim.sublime-settings' and view.size() < 2:
+            with Edit(view) as edit:
+                j = json.dumps(DEFAULT_SETTINGS, indent=4, sort_keys=True)
+                j = j.replace(' \n', '\n')
+                edit.replace(sublime.Region(0, view.size()), j)
+            view.run_command('save')
+            view.sel().clear()
+            view.sel().add(sublime.Region(0, 0))
+
+    def on_new(self, view):
+        self.on_open_settings(view)
+
+    def on_load(self, view):
+        self.on_open_settings(view)
+
     def on_pre_close(self, view):
         v = ActualVim.get(view, create=False)
         if v:

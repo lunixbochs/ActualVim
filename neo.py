@@ -7,21 +7,39 @@ import threading
 from .lib import neovim
 from .lib import util
 
-NEOVIM_PATH = util.which('nvim')
-if not NEOVIM_PATH and sys.platform == 'win32':
-    candidates = [
-        r'C:\Program Files\Neovim',
-        r'C:\Program Files (x86)\Neovim',
-        r'C:\Neovim',
-    ]
-    for c in candidates:
-        path = os.path.join(c, r'bin\nvim.exe')
-        if os.path.exists(path):
-            NEOVIM_PATH = path
-            break
+NEOVIM_PATH = None
+def plugin_loaded():
+    global NEOVIM_PATH
 
-if not NEOVIM_PATH:
-    raise Exception('cannot find nvim executable')
+    NEOVIM_PATH = sublime.load_settings('ActualVim.sublime-settings').get('neovim_path')
+    if not NEOVIM_PATH:
+        NEOVIM_PATH = util.which('nvim')
+
+    if not NEOVIM_PATH and sys.platform == 'win32':
+        candidates = [
+            r'C:\Program Files\Neovim',
+            r'C:\Program Files (x86)\Neovim',
+            r'C:\Neovim',
+        ]
+        for c in candidates:
+            path = os.path.join(c, r'bin\nvim.exe')
+            if os.path.exists(path):
+                NEOVIM_PATH = path
+                break
+
+    if not NEOVIM_PATH:
+        raise Exception('cannot find nvim executable')
+
+    global vim
+    if 'vim' in globals():
+        new = Vim(vim.nv)
+        new.notif_cb = vim.notif_cb
+        new.screen = vim.screen
+        vim = new
+    else:
+        vim = Vim()
+        vim._setup()
+
 
 INSERT_MODES = ['i']
 VISUAL_MODES = ['V', 'v', '\x16']
@@ -196,12 +214,3 @@ class Vim:
     @property
     def status_line(self):
         return self.screen[-1].strip()
-
-if 'vim' in globals():
-    new = Vim(vim.nv)
-    new.notif_cb = vim.notif_cb
-    new.screen = vim.screen
-    vim = new
-else:
-    vim = Vim()
-    vim._setup()
