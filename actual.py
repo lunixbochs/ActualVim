@@ -51,11 +51,8 @@ class ActualViewListener(sublime_plugin.ViewEventListener):
     def v(self):
         return ActualVim.get(self.view)
 
-    def on_new(self):
-        # vim buffer only gets created when we call activate()
-        # to prevent goto anything / other ephemeral views from spewing buffers
-        self.v.activate()
-
+    # vim buffer only gets created when we call activate()
+    # to prevent goto anything / other ephemeral views from spewing buffers
     def on_load(self):
         self.v.activate()
 
@@ -88,6 +85,10 @@ class ActualGlobalListener(sublime_plugin.EventListener):
 
     def on_new(self, view):
         self.on_open_settings(view)
+
+        # on_new/on_close doesn't work in view-specific listener
+        v = ActualVim.get(view)
+        v.activate()
 
     def on_load(self, view):
         self.on_open_settings(view)

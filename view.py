@@ -96,7 +96,6 @@ class ActualVim:
             settings = av.view.settings()
             settings.set('actual_intercept', enable)
             settings.set('actual_mode', enable)
-            av.update_caret()
 
         # TODO: cursor isn't adjusted here, not sure why
         # (so if it's on a newline, it will stay there when caret switches)
@@ -105,6 +104,7 @@ class ActualVim:
             av.activate()
             av.sel_to_vim()
             av.sel_from_vim()
+            av.update_caret()
 
     @property
     def actual(self):
