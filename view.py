@@ -16,13 +16,6 @@ def neovim_loaded():
     if enabled():
         ActualVim.enable()
 
-        # force this through in case the event doesn't kick in
-        # because we rely on activate() for everything to work
-        av = ActualVim.get(sublime.active_window().active_view())
-        av.activate()
-        # TODO: cursor isn't adjusted here, not sure why
-        # (so if it's on a newline, it will stay there when caret switches)
-
 try:
     _views
 except NameError:
@@ -71,10 +64,15 @@ class ActualVim:
                 return
             _views[vid] = m
         elif m and exact and m.view != view:
+            # TODO: ...what is this solving?
             return None
 
         if m:
             return m
+
+    @classmethod
+    def remove(cls, view):
+        _views.pop(view.id(), None)
 
     @classmethod
     def reload_classes(cls):
@@ -100,8 +98,11 @@ class ActualVim:
             settings.set('actual_mode', enable)
             av.update_caret()
 
-        av = cls.get(sublime.active_window().active_view(), create=False)
+        # TODO: cursor isn't adjusted here, not sure why
+        # (so if it's on a newline, it will stay there when caret switches)
+        av = cls.get(sublime.active_window().active_view())
         if av and av.actual:
+            av.activate()
             av.sel_to_vim()
             av.sel_from_vim()
 
@@ -292,6 +293,7 @@ class ActualVim:
         neo.vim.force_ready()
         if self.buf is not None:
             neo.vim.buf_close(self.buf)
+        ActualVim.remove(self.view)
 
     def set_path(self, path):
         self.buf.name = path
