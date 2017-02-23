@@ -25,7 +25,7 @@ Usage
 
 This plugin requires [Neovim to be installed](https://neovim.io/), but should otherwise work on all Sublime Text 3 platforms (tested primarily on Windows and macOS).
 
-Clone ActualVim to the path found in `Preferences -> Browse Packages...` or `sublime.packages\_path()`. Usually found here:
+Clone ActualVim to the path found in `Preferences -> Browse Packages...` or `sublime.packages_path()`. Usually found here:
 
 - macOS: `~/Library/Application Support/Sublime Text 3/Packages/`
 - Linux: `~/.config/sublime-text-3/Packages/`
