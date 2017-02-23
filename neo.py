@@ -131,10 +131,13 @@ class Screen:
 class Vim:
     def __init__(self, nv=None):
         self.nv = nv
-        self.ready = threading.RLock()
+        self.ready = threading.Lock()
         if nv is None:
             self.notif_cb = None
             self.screen = Screen()
+
+        self.mode_last = None
+        self.mode_dirty = True
 
     def _setup(self):
         self.nv = neovim.attach('child', argv=[NEOVIM_PATH, '--embed'])
@@ -235,12 +238,16 @@ class Vim:
         return state['ret']
 
     def press(self, key):
-        self.ready.acquire(False)
+        self.mode_dirty = True
+        was_ready = self.ready.acquire(False)
 
         ret = self.nv.input(key)
-        ready = self._ask_async_ready()
-        if ready:
-            self.ready.release()
+        if key in 'dyc' and was_ready and self.mode_last == 'n':
+            ready = False
+        else:
+            ready = self._ask_async_ready()
+            if ready:
+                self.ready.release()
 
         return ret, ready
 
@@ -272,7 +279,9 @@ class Vim:
 
     @property
     def mode(self):
-        return self.eval('mode()')
+        if self.mode_dirty:
+            self.mode_last = self.eval('mode()')
+        return self.mode_last
 
     @property
     def status_line(self):
