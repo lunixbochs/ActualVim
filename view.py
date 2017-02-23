@@ -242,10 +242,26 @@ class ActualVim:
             new_sel = self.visual(neo.vim.mode, a, b)
 
             def select():
-                sel = self.view.sel()
+                view = self.view
+                sel = view.sel()
                 sel.clear()
                 sel.add_all(new_sel)
                 self.sel_changed()
+
+                # make sure new selection is visible
+                vis = view.visible_region()
+                if len(sel) == 1:
+                    b = sel[0].b
+                    lines = view.lines(vis)
+                    # single cursor might be at edge of screen, make sure line is fully on screen
+                    if not vis.contains(b) or (lines[0].contains(b) or lines[-1].contains(b)):
+                        view.show(b, show_surrounds=False)
+                else:
+                    for cur in sel:
+                        if vis.contains(cur.b):
+                            break
+                    else:
+                        view.show(sel)
 
             if edit is None:
                 Edit.defer(self.view, select)
