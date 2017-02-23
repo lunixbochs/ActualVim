@@ -1,8 +1,10 @@
 import contextlib
 import os
+import queue
 import sublime
 import sys
 import threading
+import time
 
 from .lib import neovim
 from .lib import util
@@ -43,7 +45,6 @@ def plugin_loaded():
 
 INSERT_MODES = ['i']
 VISUAL_MODES = ['V', 'v', '\x16']
-
 
 class Screen:
     def __init__(self):
@@ -127,6 +128,7 @@ class Screen:
 class Vim:
     def __init__(self, nv=None):
         self.nv = nv
+        self.ready = threading.RLock()
         if nv is None:
             self.notif_cb = None
             self.screen = Screen()
@@ -178,8 +180,66 @@ class Vim:
     def buf_close(self, buf):
         self.cmd('bw! {:d}'.format(buf.number))
 
+    # readiness checking methods stuff
+    # if you don't use check/force_ready and control your input/cmd interleaving, you'll hang all the time
+    def check_ready(self):
+        ready = self.ready.acquire(False)
+        if ready:
+            self.ready.release()
+        return ready
+
+    def force_ready(self):
+        for i in range(3):
+            if self.check_ready():
+                break
+            time.sleep(0.0001)
+        else:
+            self.nv.input('<esc>')
+
+    # TODO: remove based on https://github.com/neovim/neovim/issues/6159
+    def _ask_async_ready(self):
+        # send a sync eval, then a series of async commands
+        # if we get the eval before the async commands finish, return True
+        state = {'done': False, 'ret': False, 'count': 0}
+        cv = threading.Condition()
+
+        def eval_cb(*a):
+            with cv:
+                state['done'] = True
+                state['ret'] = True
+                cv.notify()
+
+        def async1(*a):
+            with cv:
+                if state['done']:
+                    return
+                if state['count'] < 5:
+                    time.sleep(0.0001)
+                    state['count'] += 1
+                    self.nv.request('nvim_get_api_info', cb=async1)
+                else:
+                    self.nv.request('nvim_get_api_info', cb=async2)
+
+        def async2(*a):
+            with cv:
+                state['done'] = True
+                cv.notify()
+
+        self.nv.request('vim_eval', '1', cb=eval_cb)
+        self.nv.request('nvim_get_api_info', cb=async1)
+        with cv:
+            cv.wait_for(lambda: state['done'], timeout=1)
+        return state['ret']
+
     def press(self, key):
-        self.nv.feedkeys(self.nv.replace_termcodes(key))
+        self.ready.acquire(False)
+
+        ret = self.nv.input(key)
+        ready = self._ask_async_ready()
+        if ready:
+            self.ready.release()
+
+        return ret, ready
 
     @property
     def sel(self):
@@ -194,12 +254,12 @@ class Vim:
         a = add1(a)
         if b is None:
             if self.mode in VISUAL_MODES:
-                self.press('<esc>')
+                self.nv.input('<esc>')
             self.eval('cursor({:d}, {:d}, {:d})'.format(a[0], a[1], a[1]))
         else:
             b = add1(b)
 
-            self.press('\033')
+            self.nv.input('<esc>')
             self.setpos('.', *a)
             self.cmd('normal! v')
             # fix right hand side alignment

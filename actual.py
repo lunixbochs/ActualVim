@@ -69,7 +69,7 @@ class ActualViewListener(sublime_plugin.ViewEventListener):
     def on_selection_modified(self):
         self.v.sel_to_vim()
 
-    def on_modified(self):
+    def on_modified_async(self):
         self.v.sync_to_vim()
 
     def on_post_save_async(self):

@@ -86,6 +86,15 @@ class Session(object):
             self._async_session.notify(method, args)
             return
 
+        cb = kwargs.pop('cb', None)
+        if cb:
+            def indirect(*args, **kwargs):
+                self.threadsafe_call(cb, *args, **kwargs)
+            self._async_session.request(method, args, indirect)
+            if not self._is_running:
+                self._async_session.run(self._enqueue_request, self._enqueue_notification)
+            return
+
         if kwargs:
             raise ValueError("request got unsupported keyword argument(s): {}"
                              .format(', '.join(kwargs.keys())))
