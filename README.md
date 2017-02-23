@@ -3,7 +3,7 @@ ActualVim
 
 Everything you like about using Sublime Text 3, and everything you like about typing in vim.
 
-Actual uses an embedded Neovim instance to accurately manipulate each Sublime Text buffer as though
+Actual uses an embedded [Neovim](https://neovim.io/) instance to accurately manipulate each Sublime Text buffer as though
 you were editing the text directly in vim, without breaking *any* Sublime Text features (aside from multiple selection for now).
 
 This isn't a remote terminal UI like gvim and other vim frontends.
@@ -23,7 +23,7 @@ and bidirectional sync means Sublime Text and the native OS interface still work
 Usage
 ----
 
-This plugin requires Neovim to be installed, but should otherwise work on all Sublime Text 3 platforms (tested primarily on Windows and macOS).
+This plugin requires [Neovim to be installed](https://neovim.io/), but should otherwise work on all Sublime Text 3 platforms (tested primarily on Windows and macOS).
 
 Clone ActualVim to the path found in `Preferences -> Browse Packages...` or `sublime.packages\_path()`. Usually found here:
 
