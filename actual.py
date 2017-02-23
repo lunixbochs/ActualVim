@@ -3,7 +3,7 @@ import os
 import sublime
 import sublime_plugin
 
-from .view import ActualVim
+from .view import ActualVim, enabled
 from .edit import Edit
 
 DEFAULT_SETTINGS = {
@@ -14,7 +14,7 @@ DEFAULT_SETTINGS = {
 
 class ActualEnable(sublime_plugin.ApplicationCommand):
     def is_enabled(self):
-        return not ActualVim.enabled
+        return not enabled()
 
     def run(self):
         ActualVim.enable()
@@ -22,7 +22,7 @@ class ActualEnable(sublime_plugin.ApplicationCommand):
 
 class ActualDisable(sublime_plugin.ApplicationCommand):
     def is_enabled(self):
-        return ActualVim.enabled
+        return enabled()
 
     def run(self):
         ActualVim.enable(False)

@@ -10,16 +10,21 @@ def copy_sel(sel):
         sel = sel.sel()
     return [(r.a, r.b) for r in sel]
 
+def plugin_loaded():
+    if enabled():
+        ActualVim.enable()
 
 try:
     _views
 except NameError:
     _views = {}
 
-class ActualVim:
+def enabled():
     settings = sublime.load_settings('ActualVim.sublime-settings')
-    enabled = settings.get('enabled') or True
+    return settings.get('enabled')
 
+
+class ActualVim:
     def __init__(self, view):
         if view.settings().get('actual_proxy'):
             return
@@ -30,11 +35,13 @@ class ActualVim:
         self.changes = None
         self.block = False
 
+        en = enabled()
+
         s = {
-            'actual_intercept': True,
-            'actual_mode': True,
+            'actual_intercept': en,
+            'actual_mode': en,
             # it's most likely a buffer will start in command mode
-            'inverse_caret_state': True,
+            'inverse_caret_state': en,
         }
         for k, v in s.items():
             view.settings().set(k, v)
@@ -70,7 +77,6 @@ class ActualVim:
 
     @classmethod
     def enable(cls, enable=True):
-        cls.enabled = enable
         settings = sublime.load_settings('ActualVim.sublime-settings')
         settings.set('enabled', enable)
         sublime.save_settings('ActualVim.sublime-settings')
