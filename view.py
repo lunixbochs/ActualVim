@@ -14,6 +14,9 @@ def copy_sel(sel):
 def plugin_loaded():
     if enabled():
         ActualVim.enable()
+        # force this through in case the event doesn't kick in
+        # because we rely on activate() for everything to work
+        ActualVim.get(sublime.active_window().active_view()).activate()
 
 try:
     _views
@@ -170,6 +173,7 @@ class ActualVim:
             self.buf = neo.vim.buf_new()
             self.sync_to_vim()
 
+        # TODO: track active buffer and only run if swapping?
         neo.vim.buf_activate(self.buf)
         self.status_from_vim()
 
