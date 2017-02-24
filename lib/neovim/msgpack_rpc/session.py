@@ -1,5 +1,6 @@
 """Synchronous msgpack-rpc session layer."""
 import logging
+import threading
 from collections import deque
 from queue import Queue
 
@@ -33,6 +34,7 @@ class Session(object):
         self._pending_messages = deque()
         self._is_running = False
         self._setup_exception = None
+        self._lock = threading.RLock()
 
     def threadsafe_call(self, fn, *args, **kwargs):
         """Wrapper around `AsyncSession.threadsafe_call`."""
@@ -81,37 +83,38 @@ class Session(object):
         sent instead. This will never block, and the return value or error is
         ignored.
         """
-        async = kwargs.pop('async', False)
-        if async:
-            self._async_session.notify(method, args)
-            return
+        with self._lock:
+            async = kwargs.pop('async', False)
+            if async:
+                self._async_session.notify(method, args)
+                return
 
-        cb = kwargs.pop('cb', None)
-        if cb:
-            def indirect(*args, **kwargs):
-                self.threadsafe_call(cb, *args, **kwargs)
-            self._async_session.request(method, args, indirect)
-            if not self._is_running:
-                self._async_session.run(self._enqueue_request, self._enqueue_notification)
-            return
+            cb = kwargs.pop('cb', None)
+            if cb:
+                def indirect(*args, **kwargs):
+                    self.threadsafe_call(cb, *args, **kwargs)
+                self._async_session.request(method, args, indirect)
+                if not self._is_running:
+                    self._async_session.run(self._enqueue_request, self._enqueue_notification)
+                return
 
-        if kwargs:
-            raise ValueError("request got unsupported keyword argument(s): {}"
-                             .format(', '.join(kwargs.keys())))
+            if kwargs:
+                raise ValueError("request got unsupported keyword argument(s): {}"
+                                 .format(', '.join(kwargs.keys())))
 
-        if self._is_running:
-            v = self._yielding_request(method, args)
-        else:
-            v = self._blocking_request(method, args)
+            if self._is_running:
+                v = self._yielding_request(method, args)
+            else:
+                v = self._blocking_request(method, args)
 
-        if not v:
-            # EOF
-            raise IOError('EOF')
-        err, rv = v
-        if err:
-            info("'Received error: %s", err)
-            raise self.error_wrapper(err)
-        return rv
+            if not v:
+                # EOF
+                raise IOError('EOF')
+            err, rv = v
+            if err:
+                info("'Received error: %s", err)
+                raise self.error_wrapper(err)
+            return rv
 
     def run(self, request_cb, notification_cb, setup_cb=None):
         """Run the event loop to receive requests and notifications from Nvim.
