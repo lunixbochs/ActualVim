@@ -41,8 +41,10 @@ class ActualVim:
         self.changes = None
         self.block = False
 
-        en = enabled()
+        # first scroll is buggy
+        self.first_scroll = True
 
+        en = enabled()
         s = {
             'actual_intercept': en,
             'actual_mode': en,
@@ -246,12 +248,17 @@ class ActualVim:
         a, b = neo.vim.sel
         new_sel = self.visual(neo.vim.mode, a, b)
 
-        def select():
-            view = self.view
+        def select(view, edit):
             sel = view.sel()
             sel.clear()
             sel.add_all(new_sel)
             self.sel_changed()
+
+            # defer first scroll: vis detection seems buggy during load
+            if self.first_scroll:
+                self.first_scroll = False
+                sublime.set_timeout(self.sel_from_vim, 50)
+                return
 
             # make sure new selection is visible
             vis = view.visible_region()
