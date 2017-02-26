@@ -173,6 +173,7 @@ class ActualVim:
             return ret
 
     def activate(self):
+        if not neo._loaded: return
         neo.vim.force_ready()
         # first activate
         if self.buf is None:
@@ -184,6 +185,7 @@ class ActualVim:
         self.status_from_vim()
 
     def update_caret(self):
+        if not neo._loaded: return
         wide = False
         if self.actual:
             mode = neo.vim.mode
@@ -191,6 +193,7 @@ class ActualVim:
         self.view.settings().set('inverse_caret_state', wide)
 
     def sync_to_vim(self, force=False):
+        if not neo._loaded: return
         if self.block or not (self.changed or force) or not self.buf:
             return
 
@@ -201,6 +204,7 @@ class ActualVim:
         self.changes = self.view.change_count()
 
     def sync_from_vim(self, edit=None):
+        if not neo._loaded: return
         if not self.actual:
             return
 
@@ -216,6 +220,7 @@ class ActualVim:
             self.status_from_vim()
 
     def sel_to_vim(self, force=False):
+        if not neo._loaded: return
         if self.sel_changed():
             neo.vim.force_ready()
             # single selection for now...
@@ -234,6 +239,7 @@ class ActualVim:
             self.update_caret()
 
     def sel_from_vim(self, edit=None):
+        if not neo._loaded: return
         if not self.actual:
             return
 
@@ -275,6 +281,7 @@ class ActualVim:
             self.view.erase_status('actual')
 
     def press(self, key):
+        if not neo._loaded: return
         if self.buf is None:
             return
 
@@ -305,6 +312,7 @@ class ActualVim:
         self.busy.release()
 
     def close(self):
+        if not neo._loaded: return
         neo.vim.force_ready()
         if self.buf is not None:
             neo.vim.buf_close(self.buf)

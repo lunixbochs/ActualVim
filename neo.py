@@ -10,6 +10,8 @@ from .lib import neovim
 from .lib import util
 
 NEOVIM_PATH = None
+_loaded = False
+
 def plugin_loaded():
     global NEOVIM_PATH
 
@@ -32,7 +34,7 @@ def plugin_loaded():
     if not NEOVIM_PATH:
         raise Exception('cannot find nvim executable')
 
-    global vim
+    global vim, _loaded
     if 'vim' in globals():
         new = Vim(vim.nv)
         new.notif_cb = vim.notif_cb
@@ -42,6 +44,7 @@ def plugin_loaded():
         vim = Vim()
         vim._setup()
 
+        _loaded = True
         from .view import neovim_loaded
         neovim_loaded()
 
