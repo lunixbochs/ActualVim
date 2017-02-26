@@ -40,6 +40,7 @@ class ActualVim:
         self.buf = None
         self.changes = None
         self.block = False
+        self.block_hit = False
 
         # first scroll is buggy
         self.first_scroll = True
@@ -196,7 +197,11 @@ class ActualVim:
 
     def sync_to_vim(self, force=False):
         if not neo._loaded: return
-        if self.block or not (self.changed or force) or not self.buf:
+        if self.block:
+            self.block_hit = True
+            return
+
+        if not (self.changed or force) or not self.buf:
             return
 
         neo.vim.force_ready()

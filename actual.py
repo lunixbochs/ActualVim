@@ -119,10 +119,11 @@ class ActualGlobalListener(sublime_plugin.EventListener):
 
         if v.block:
             v.block = False
-            def fix():
-                v.sync_to_vim(force=True)
-            sublime.set_timeout(fix, 1)
-            return
+            if v.block_hit:
+                v.block_hit = False
+                def fix():
+                    v.sync_to_vim(force=True)
+                sublime.set_timeout(fix, 1)
 
     def on_post_window_command(self, view, name, args):
         self.on_post_text_command(view, name, args)
