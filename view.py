@@ -319,10 +319,10 @@ class ActualVim:
                 self.update_caret()
 
     def close(self):
-        if not neo._loaded: return
-        neo.vim.force_ready()
-        if self.buf is not None:
-            neo.vim.buf_close(self.buf)
+        if neo._loaded:
+            neo.vim.force_ready()
+            if self.buf is not None:
+                neo.vim.buf_close(self.buf)
         ActualVim.remove(self.view)
 
     def set_path(self, path):
