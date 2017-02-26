@@ -1,6 +1,7 @@
+import queue
 import sublime
-import traceback
 import threading
+import traceback
 
 from . import neo
 from .edit import Edit
@@ -32,13 +33,13 @@ class ActualVim:
             return
 
         self.busy = threading.RLock()
-        self.keylock = threading.Lock()
-        self.keybuf = []
+        self.keyq = queue.Queue()
 
         self.view = view
         self.last_sel = None
         self.buf = None
         self.changes = None
+        self.last_size = None
         self.block = False
         self.block_hit = False
 
@@ -167,13 +168,18 @@ class ActualVim:
 
     @property
     def changed(self):
-        if not self.busy.acquire(False):
-            return False
+        return any((
+            self.changes is None or self.changes < self.view.change_count(),
+            # revert changes size without increasing change count
+            self.last_size is not None and self.last_size != self.view.size(),
+        ))
+
+    def mark_changed(self, advance=0):
+        self.changes = self.view.change_count() + advance
+        if advance:
+            self.last_size = None
         else:
-            ret = self.changes is None or self.changes < self.view.change_count()
-            # need to release lock after calculating, so self.changes doesn't shift in middle of previous line
-            self.busy.release()
-            return ret
+            self.last_size = self.view.size()
 
     def activate(self):
         if not neo._loaded: return
@@ -202,13 +208,15 @@ class ActualVim:
             return
 
         if not (self.changed or force) or not self.buf:
+            if self.last_size is None:
+                self.last_size = self.view.size()
             return
 
+        self.mark_changed()
         neo.vim.force_ready()
         text = self.view.substr(sublime.Region(0, self.view.size())).split('\n')
         self.buf[:] = text
         self.sel_to_vim(force)
-        self.changes = self.view.change_count()
 
     def sync_from_vim(self, edit=None):
         if not neo._loaded: return
@@ -216,7 +224,7 @@ class ActualVim:
             return
 
         with self.busy:
-            self.changes = self.view.change_count() + 1
+            self.mark_changed(1)
             # TODO: global UI change is GROSS, do deltas if possible
             text = '\n'.join(self.buf[:])
             everything = sublime.Region(0, self.view.size())
@@ -297,31 +305,18 @@ class ActualVim:
         if self.buf is None:
             return
 
-        # looks like keypress can overlap, maybe should buffer them
-        # to make the first thread resolve all keypresses before updating?
-        with self.keylock:
-            free = self.busy.acquire(False)
-            if not free:
-                self.keybuf.append(key)
-                return
-
+        self.keyq.put(key)
         # process the key, then all buffered keys
-        while True:
+        with self.busy:
+            key = self.keyq.get()
             _, ready = neo.vim.press(key)
-            with self.keylock:
-                if not self.keybuf:
-                    break
-                key = self.keybuf.pop(0)
-
-        if ready:
-            # TODO: trigger UI update on vim event, not here?
-            # well, if we don't figure it out before returning control
-            # to sublime, we get more events from sublime to figure out if we need to ignore
-            self.sync_from_vim()
-            # (trigger this somewhere else? vim mode change callback?)
-            self.update_caret()
-
-        self.busy.release()
+            if ready:
+                # TODO: trigger UI update on vim event, not here?
+                # well, if we don't figure it out before returning control
+                # to sublime, we get more events from sublime to figure out if we need to ignore
+                self.sync_from_vim()
+                # (trigger this somewhere else? vim mode change callback?)
+                self.update_caret()
 
     def close(self):
         if not neo._loaded: return
