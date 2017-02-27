@@ -24,7 +24,7 @@ except NameError:
 
 def enabled():
     settings = sublime.load_settings('ActualVim.sublime-settings')
-    return settings.get('enabled')
+    return settings.get('enabled', True)
 
 
 class ActualVim:
