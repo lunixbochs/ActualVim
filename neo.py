@@ -9,8 +9,9 @@ import time
 from .lib import neovim
 from .lib import util
 
-NEOVIM_PATH = None
-_loaded = False
+if not '_loaded' in globals():
+    NEOVIM_PATH = None
+    _loaded = False
 
 INSERT_MODES = ['i', 'R']
 VISUAL_MODES = ['V', 'v', '\x16']
