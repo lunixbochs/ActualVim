@@ -58,7 +58,7 @@ def plugin_loaded():
         neovim_loaded()
 
 
-INSERT_MODES = ['i']
+INSERT_MODES = ['i', 'R']
 VISUAL_MODES = ['V', 'v', '\x16']
 
 class Screen:
@@ -232,7 +232,6 @@ class Vim:
                 if state['done']:
                     return
                 if state['count'] < 5:
-                    time.sleep(0.0001)
                     state['count'] += 1
                     self.nv.request('nvim_get_api_info', cb=async1)
                 else:
@@ -252,10 +251,14 @@ class Vim:
     def press(self, key):
         self.mode_dirty = True
         was_ready = self.ready.acquire(False)
+        simple_key = len(key) == 1 and (0x20 <= ord(key[0]) <= 0x7e)
 
         ret = self.nv.input(key)
         if key in 'dyc' and was_ready and self.mode_last == 'n':
             ready = False
+        elif self.mode_last in INSERT_MODES and simple_key:
+            # TODO: this is an assumption and could break in custom setups
+            ready = True
         else:
             ready = self._ask_async_ready()
             if ready:
