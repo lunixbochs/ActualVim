@@ -12,6 +12,15 @@ from .lib import util
 NEOVIM_PATH = None
 _loaded = False
 
+INSERT_MODES = ['i', 'R']
+VISUAL_MODES = ['V', 'v', '\x16']
+HALF_KEYS = ['d', 'y', 'c', '<lt>', '>']
+SIMPLE_KEYS = [chr(c) for c in range(0x20, 0x7f)] + [
+    '<bs>', '<lt>',
+    '<left>', '<down>', '<right>', '<up>',
+    '<del>', '<enter>', '<tab>'
+]
+
 def plugin_loaded():
     global NEOVIM_PATH
 
@@ -57,9 +66,6 @@ def plugin_loaded():
         from .view import neovim_loaded
         neovim_loaded()
 
-
-INSERT_MODES = ['i', 'R']
-VISUAL_MODES = ['V', 'v', '\x16']
 
 class Screen:
     def __init__(self):
@@ -245,12 +251,11 @@ class Vim:
     def press(self, key):
         self.mode_dirty = True
         was_ready = self.ready.acquire(False)
-        simple_key = len(key) == 1 and (0x20 <= ord(key[0]) <= 0x7e)
 
         ret = self.nv.input(key)
-        if key in 'dyc' and was_ready and self.mode_last == 'n':
+        if key in HALF_KEYS and was_ready and self.mode_last == 'n':
             ready = False
-        elif self.mode_last in INSERT_MODES and simple_key:
+        elif self.mode_last in INSERT_MODES and key in SIMPLE_KEYS:
             # TODO: this is an assumption and could break in custom setups
             ready = True
         else:

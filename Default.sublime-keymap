@@ -29,7 +29,7 @@
     { "keys": ["9"],          "args": {"key": "9"},          "context": [{ "key": "setting.actual_intercept", "operand": true }], "command": "actual_keypress" },
     { "keys": [":"],          "args": {"key": ":"},          "context": [{ "key": "setting.actual_intercept", "operand": true }], "command": "actual_keypress" },
     { "keys": [";"],          "args": {"key": ";"},          "context": [{ "key": "setting.actual_intercept", "operand": true }], "command": "actual_keypress" },
-    { "keys": ["<"],          "args": {"key": "<"},          "context": [{ "key": "setting.actual_intercept", "operand": true }], "command": "actual_keypress" },
+    { "keys": ["<"],          "args": {"key": "<lt>"},       "context": [{ "key": "setting.actual_intercept", "operand": true }], "command": "actual_keypress" },
     { "keys": ["="],          "args": {"key": "="},          "context": [{ "key": "setting.actual_intercept", "operand": true }], "command": "actual_keypress" },
     { "keys": [">"],          "args": {"key": ">"},          "context": [{ "key": "setting.actual_intercept", "operand": true }], "command": "actual_keypress" },
     { "keys": ["?"],          "args": {"key": "?"},          "context": [{ "key": "setting.actual_intercept", "operand": true }], "command": "actual_keypress" },
