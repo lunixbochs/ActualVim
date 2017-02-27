@@ -19,17 +19,26 @@ def plugin_loaded():
     if not NEOVIM_PATH:
         NEOVIM_PATH = util.which('nvim')
 
-    if not NEOVIM_PATH and sys.platform == 'win32':
-        candidates = [
-            r'C:\Program Files\Neovim',
-            r'C:\Program Files (x86)\Neovim',
-            r'C:\Neovim',
-        ]
-        for c in candidates:
-            path = os.path.join(c, r'bin\nvim.exe')
-            if os.path.exists(path):
-                NEOVIM_PATH = path
-                break
+    if sys.platform == 'win32':
+        if not NEOVIM_PATH:
+            candidates = [
+                r'C:\Program Files\Neovim',
+                r'C:\Program Files (x86)\Neovim',
+                r'C:\Neovim',
+            ]
+            for c in candidates:
+                path = os.path.join(c, r'bin\nvim.exe')
+                if os.path.exists(path):
+                    NEOVIM_PATH = path
+                    break
+        elif os.path.isdir(NEOVIM_PATH):
+            for c in [r'bin\nvim.exe', 'nvim.exe']:
+                path = os.path.join(NEOVIM_PATH, c)
+                if os.path.exists(path):
+                    NEOVIM_PATH = path
+                    break
+            else:
+                NEOVIM_PATH = None
 
     if not NEOVIM_PATH:
         raise Exception('cannot find nvim executable')
