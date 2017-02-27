@@ -229,13 +229,7 @@ class Vim:
 
         def async1(*a):
             with cv:
-                if state['done']:
-                    return
-                if state['count'] < 5:
-                    state['count'] += 1
-                    self.nv.request('nvim_get_api_info', cb=async1)
-                else:
-                    self.nv.request('nvim_get_api_info', cb=async2)
+                self.nv.request('nvim_get_api_info', cb=async2)
 
         def async2(*a):
             with cv:
