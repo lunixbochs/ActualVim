@@ -261,8 +261,8 @@ class Vim:
             ready = True
         else:
             ready = self._ask_async_ready()
-            if ready:
-                self.ready.release()
+        if ready:
+            self.ready.release()
 
         return ret, ready
 
