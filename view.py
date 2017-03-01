@@ -112,7 +112,7 @@ class ActualVim:
 
     @property
     def actual(self):
-        return self.view and self.view.settings().get('actual_mode')
+        return self.view and self.settings.get('actual_mode')
 
     def sel_changed(self):
         new_sel = copy_sel(self.view)
@@ -181,6 +181,10 @@ class ActualVim:
         else:
             self.last_size = self.view.size()
 
+    @property
+    def settings(self):
+        return self.view.settings()
+
     def activate(self):
         if not neo._loaded: return
         neo.vim.force_ready()
@@ -199,7 +203,7 @@ class ActualVim:
         if self.actual:
             mode = neo.vim.mode
             wide = (mode not in neo.INSERT_MODES + neo.VISUAL_MODES)
-        self.view.settings().set('inverse_caret_state', wide)
+        self.settings.set('inverse_caret_state', wide)
 
     def sync_to_vim(self, force=False):
         if not neo._loaded: return
