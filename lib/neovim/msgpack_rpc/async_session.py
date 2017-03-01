@@ -1,11 +1,6 @@
 """Asynchronous msgpack-rpc handling in the event loop pipeline."""
-import logging
 import threading
 from traceback import format_exc
-
-
-logger = logging.getLogger(__name__)
-debug, info, warn = (logger.debug, logger.info, logger.warning,)
 
 
 class AsyncSession(object):
@@ -78,7 +73,6 @@ class AsyncSession(object):
             self._handlers.get(msg[0], self._on_invalid_message)(msg)
         except Exception:
             err_str = format_exc(5)
-            warn(err_str)
             self._msgpack_stream.send([1, 0, err_str, None])
 
     def _on_request(self, msg):
@@ -86,7 +80,6 @@ class AsyncSession(object):
         #   - msg[1]: id
         #   - msg[2]: method name
         #   - msg[3]: arguments
-        debug('received request: %s, %s', msg[2], msg[3])
         self._request_cb(msg[2], msg[3], Response(self._msgpack_stream,
                                                   msg[1]))
 
@@ -95,7 +88,6 @@ class AsyncSession(object):
         #   - msg[1]: the id
         #   - msg[2]: error(if any)
         #   - msg[3]: result(if not errored)
-        debug('received response: %s, %s', msg[2], msg[3])
         with self._lock:
             self._pending_requests.pop(msg[1])(msg[2], msg[3])
 
@@ -103,12 +95,10 @@ class AsyncSession(object):
         # notification/event
         #   - msg[1]: event name
         #   - msg[2]: arguments
-        debug('received notification: %s, %s', msg[1], msg[2])
         self._notification_cb(msg[1], msg[2])
 
     def _on_invalid_message(self, msg):
         error = 'Received invalid message %s' % msg
-        warn(error)
         self._msgpack_stream.send([1, 0, error, None])
 
 
@@ -134,5 +124,4 @@ class Response(object):
             resp = [1, self._request_id, value, None]
         else:
             resp = [1, self._request_id, None, value]
-        debug('sending response to request %d: %s', self._request_id, resp)
         self._msgpack_stream.send(resp)

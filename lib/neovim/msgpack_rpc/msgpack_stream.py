@@ -1,12 +1,7 @@
 """Msgpack handling in the event loop pipeline."""
-import logging
-
 from actualvim.lib.msgpack import Packer, Unpacker
 
 from ..compat import unicode_errors_default
-
-logger = logging.getLogger(__name__)
-debug, info, warn = (logger.debug, logger.info, logger.warning,)
 
 
 class MsgpackStream(object):
@@ -30,7 +25,6 @@ class MsgpackStream(object):
 
     def send(self, msg):
         """Queue `msg` for sending to Nvim."""
-        debug('sent %s', msg)
         self._event_loop.send(self._packer.pack(msg))
 
     def run(self, message_cb):
@@ -51,10 +45,7 @@ class MsgpackStream(object):
         self._unpacker.feed(data)
         while True:
             try:
-                debug('waiting for message...')
                 msg = next(self._unpacker)
-                debug('received message: %s', msg)
                 self._message_cb(msg)
             except StopIteration:
-                debug('unpacker needs more data...')
                 break

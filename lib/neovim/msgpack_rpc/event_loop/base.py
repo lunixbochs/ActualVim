@@ -1,11 +1,6 @@
 """Common code for event loop implementations."""
-import logging
 import signal
 import threading
-
-
-logger = logging.getLogger(__name__)
-debug, info, warn = (logger.debug, logger.info, logger.warning,)
 
 
 # When signals are restored, the event loop library may reset SIGINT to SIG_DFL
@@ -90,27 +85,22 @@ class BaseEventLoop(object):
 
     def connect_tcp(self, address, port):
         """Connect to tcp/ip `address`:`port`. Delegated to `_connect_tcp`."""
-        info('Connecting to TCP address: %s:%d', address, port)
         self._connect_tcp(address, port)
 
     def connect_socket(self, path):
         """Connect to socket at `path`. Delegated to `_connect_socket`."""
-        info('Connecting to %s', path)
         self._connect_socket(path)
 
     def connect_stdio(self):
         """Connect using stdin/stdout. Delegated to `_connect_stdio`."""
-        info('Preparing stdin/stdout for streaming data')
         self._connect_stdio()
 
     def connect_child(self, argv):
         """Connect a new Nvim instance. Delegated to `_connect_child`."""
-        info('Spawning a new nvim instance')
         self._connect_child(argv)
 
     def send(self, data):
         """Queue `data` for sending to Nvim."""
-        debug("Sending '%s'", data)
         self._send(data)
 
     def threadsafe_call(self, fn):
@@ -135,9 +125,7 @@ class BaseEventLoop(object):
         self._on_data = data_cb
         if threading.current_thread() == main_thread:
             self._setup_signals([signal.SIGINT, signal.SIGTERM])
-        debug('Entering event loop')
         self._run()
-        debug('Exited event loop')
         if threading.current_thread() == main_thread:
             self._teardown_signals()
             signal.signal(signal.SIGINT, default_int_handler)
@@ -146,11 +134,9 @@ class BaseEventLoop(object):
     def stop(self):
         """Stop the event loop."""
         self._stop()
-        debug('Stopped event loop')
 
     def _on_signal(self, signum):
         msg = 'Received {}'.format(self._signames[signum])
-        debug(msg)
         if signum == signal.SIGINT and self._transport_type == 'stdio':
             # When the transport is stdio, we are probably running as a Nvim
             # child process. In that case, we don't want to be killed by
@@ -163,7 +149,6 @@ class BaseEventLoop(object):
         self.stop()
 
     def _on_error(self, error):
-        debug(error)
         self._error = IOError(error)
         self.stop()
 

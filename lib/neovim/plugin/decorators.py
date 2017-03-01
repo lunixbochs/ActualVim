@@ -1,12 +1,9 @@
 """Decorators used by python host plugin system."""
 
 import inspect
-import logging
 
 from ..compat import IS_PYTHON3, unicode_errors_default
 
-logger = logging.getLogger(__name__)
-debug, info, warn = (logger.debug, logger.info, logger.warning,)
 __all__ = ('plugin', 'rpc_export', 'command', 'autocmd', 'function',
            'encoding', 'decode', 'shutdown_hook')
 

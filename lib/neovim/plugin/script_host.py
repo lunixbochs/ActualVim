@@ -1,7 +1,6 @@
 """Legacy python/python3-vim emulation."""
 import imp
 import io
-import logging
 import os
 import sys
 
@@ -12,9 +11,6 @@ from ..util import format_exc_skip
 
 __all__ = ('ScriptHost',)
 
-
-logger = logging.getLogger(__name__)
-debug, info, warn = (logger.debug, logger.info, logger.warn,)
 
 IS_PYTHON3 = sys.version_info >= (3, 0)
 
@@ -49,12 +45,10 @@ class ScriptHost(object):
         forwarded to Nvim.
         """
         self.nvim = nvim
-        info('install import hook/path')
         self.hook = path_hook(nvim)
         sys.path_hooks.append(self.hook)
         nvim.VIM_SPECIAL_PATH = '_vim_path_'
         sys.path.append(nvim.VIM_SPECIAL_PATH)
-        info('redirect sys.stdout and sys.stderr')
         self.saved_stdout = sys.stdout
         self.saved_stderr = sys.stderr
         sys.stdout = RedirectStream(lambda data: nvim.out_write(data))
@@ -63,10 +57,8 @@ class ScriptHost(object):
     def teardown(self):
         """Restore state modified from the `setup` call."""
         nvim = self.nvim
-        info('uninstall import hook/path')
         sys.path.remove(nvim.VIM_SPECIAL_PATH)
         sys.path_hooks.remove(self.hook)
-        info('restore sys.stdout and sys.stderr')
         sys.stdout = self.saved_stdout
         sys.stderr = self.saved_stderr
 

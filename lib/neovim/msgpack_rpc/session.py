@@ -1,5 +1,4 @@
 """Synchronous msgpack-rpc session layer."""
-import logging
 import threading
 from collections import deque
 from queue import Queue
@@ -12,10 +11,6 @@ def spawn_thread(fn):
     t = threading.Thread(target=fn)
     t.daemon = True
     t.start()
-
-logger = logging.getLogger(__name__)
-error, debug, info, warn = (logger.error, logger.debug, logger.info,
-                            logger.warning,)
 
 
 class Session(object):
@@ -42,8 +37,7 @@ class Session(object):
             try:
                 fn(*args, **kwargs)
             except Exception:
-                warn("error caught while excecuting async callback\n%s\n",
-                     format_exc())
+                pass
 
         def greenlet_wrapper():
             spawn_thread(handler)
@@ -112,7 +106,6 @@ class Session(object):
                 raise IOError('EOF')
             err, rv = v
             if err:
-                info("'Received error: %s", err)
                 raise self.error_wrapper(err)
             return rv
 
@@ -197,31 +190,23 @@ class Session(object):
         def handler():
             try:
                 rv = self._request_cb(name, args)
-                debug('sending %s as response', rv)
                 response.send(rv)
             except ErrorResponse as err:
-                warn("error response from request '%s %s': %s", name,
-                     args, format_exc())
                 response.send(err.args[0], error=True)
             except Exception as err:
-                warn("error caught while processing request '%s %s': %s", name,
-                     args, format_exc())
                 response.send(repr(err) + "\n" + format_exc(5), error=True)
 
         # Create a new greenlet to handle the request
         spawn_thread(handler)
-        debug('received rpc request, thread will handle it')
 
     def _on_notification(self, name, args):
         def handler():
             try:
                 self._notification_cb(name, args)
             except Exception:
-                warn("error caught while processing notification '%s %s': %s",
-                     name, args, format_exc())
+                pass
 
         spawn_thread(handler)
-        debug('received rpc notification, thread will handle it')
 
 
 class ErrorResponse(BaseException):

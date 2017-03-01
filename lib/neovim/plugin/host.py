@@ -2,7 +2,6 @@
 import functools
 import imp
 import inspect
-import logging
 import os
 import os.path
 import re
@@ -16,10 +15,6 @@ from ..msgpack_rpc import ErrorResponse
 from ..util import format_exc_skip
 
 __all__ = ('Host')
-
-logger = logging.getLogger(__name__)
-error, debug, info, warn = (logger.error, logger.debug, logger.info,
-                            logger.warning,)
 
 
 class Host(object):
@@ -88,9 +83,7 @@ class Host(object):
             error(msg)
             raise ErrorResponse(msg)
 
-        debug('calling request handler for "%s", args: "%s"', name, args)
         rv = handler(*args)
-        debug("request handler for '%s %s' returns: %s", name, args, rv)
         return rv
 
     def _on_notification(self, name, args):
@@ -104,7 +97,6 @@ class Host(object):
             self._on_async_err(msg + "\n")
             return
 
-        debug('calling notification handler for "%s", args: "%s"', name, args)
         handler(*args)
 
     def _missing_handler_error(self, name, kind):
