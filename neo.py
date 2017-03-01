@@ -268,7 +268,18 @@ class Vim:
 
     @property
     def sel(self):
-        r1, c1, r2, c2 = self.eval('line(".")', 'col(".")', 'line("v")', 'col("v")')
+        # TODO: use nvim_atomic? we need to get sel, buf, mode, everything at once if possible
+        ev = 'line("."), col("."), line("v"), col("v")'
+        # we always need the mode to calculate selection anyway
+        if self.mode_dirty:
+            ev += ', mode()'
+        data = self.eval('[' + ev + ']')
+
+        if self.mode_dirty:
+            self.mode_dirty = False
+            self.mode_last = data.pop()
+
+        r1, c1, r2, c2 = data
         return (r2 - 1, c2 - 1), (r1 - 1, c1 - 1)
 
     def setpos(self, expr, line, col):
