@@ -321,6 +321,7 @@ class ActualVim:
                 self.sync_from_vim()
                 # (trigger this somewhere else? vim mode change callback?)
                 self.update_caret()
+            return ready
 
     def close(self):
         if neo._loaded:
