@@ -5,7 +5,7 @@ import sys
 
 from traceback import format_stack
 
-from actualvim.lib.msgpack import ExtType
+from actualvim.lib import umsgpack
 
 from .buffer import Buffer
 from .common import (Remote, RemoteApi, RemoteMap, RemoteSequence,
@@ -94,16 +94,16 @@ class Nvim(object):
     def _from_nvim(self, obj, decode=None):
         if decode is None:
             decode = self._decode
-        if type(obj) is ExtType:
-            cls = self.types[obj.code]
-            return cls(self, (obj.code, obj.data))
+        if isinstance(obj, umsgpack.Ext):
+            cls = self.types[obj.type]
+            return cls(self, (obj.type, obj.data))
         if decode:
             obj = decode_if_bytes(obj, decode)
         return obj
 
     def _to_nvim(self, obj):
         if isinstance(obj, Remote):
-            return ExtType(*obj.code_data)
+            return umsgpack.Ext(*obj.code_data)
         return obj
 
     def request_raw(self, name, *args, **kwargs):
