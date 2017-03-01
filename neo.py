@@ -236,7 +236,7 @@ class Vim:
 
         def async1(*a):
             with cv:
-                self.nv.request('nvim_get_api_info', cb=async2)
+                self.nv.request('vim_input', cb=async2)
 
         def async2(*a):
             with cv:
@@ -244,7 +244,7 @@ class Vim:
                 cv.notify()
 
         self.nv.request('vim_eval', '1', cb=eval_cb)
-        self.nv.request('nvim_get_api_info', cb=async1)
+        self.nv.request('vim_input', cb=async1)
         with cv:
             cv.wait_for(lambda: state['done'], timeout=1)
         return state['ret']
