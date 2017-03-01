@@ -50,10 +50,11 @@ __version__ = "2.3.0"
 version = (2,3,0)
 "Module version tuple"
 
-import struct
 import collections
-import sys
+import gc
 import io
+import struct
+import sys
 
 ################################################################################
 ### Ext Class
@@ -573,30 +574,40 @@ def _unpack_float(code, fp, options):
         return struct.unpack(">d", _read_except(fp, 8))[0]
     raise Exception("logic error, not float: 0x%02x" % ord(code))
 
+_structB = struct.Struct('B')
+_structH = struct.Struct('>H')
+_structI = struct.Struct('>I')
+
+_strmap = [None] * 0x100
+_strmap[0xd9] = (1, _structB)
+_strmap[0xda] = (2, _structH)
+_strmap[0xdb] = (4, _structI)
+for i in range(0x100):
+    if i & 0xe0 == 0xa0:
+        _strmap[i] = i & ~0xe0
+
 def _unpack_string(code, fp, options):
-    if (ord(code) & 0xe0) == 0xa0:
-        length = ord(code) & ~0xe0
-    elif code == b'\xd9':
-        length = struct.unpack("B", _read_except(fp, 1))[0]
-    elif code == b'\xda':
-        length = struct.unpack(">H", _read_except(fp, 2))[0]
-    elif code == b'\xdb':
-        length = struct.unpack(">I", _read_except(fp, 4))[0]
+    how = _strmap[ord(code)]
+    t = type(how)
+    if t is int:
+        length = how
+    elif t is tuple:
+        length = how[1].unpack(fp.read(how[0]))[0]
     else:
         raise Exception("logic error, not string: 0x%02x" % ord(code))
 
     # Always return raw bytes in compatibility mode
-    global compatibility
-    if compatibility:
-        return _read_except(fp, length)
+    # global compatibility
+    # if compatibility:
+    #     return _read_except(fp, length)
 
-    data = _read_except(fp, length)
-    try:
-        return bytes.decode(data, 'utf-8')
-    except UnicodeDecodeError:
-        if options.get("allow_invalid_utf8"):
-            return InvalidString(data)
-        raise InvalidStringException("unpacked string is invalid utf-8")
+    return fp.read(length).decode('utf-8')
+    # try:
+    #   return bytes.decode(data, 'utf-8')
+    # except UnicodeDecodeError:
+    #     if options.get("allow_invalid_utf8"):
+    #         return InvalidString(data)
+    #     raise InvalidStringException("unpacked string is invalid utf-8")
 
 def _unpack_binary(code, fp, options):
     if code == b'\xc4':
