@@ -43,6 +43,9 @@ class Remote(object):
         """Wrapper for nvim.request."""
         return self._session.request(name, self, *args, **kwargs)
 
+    def request_raw(self, name, *args, **kwargs):
+        return self._session.request_raw(name, self._session._to_nvim(self), *args, **kwargs)
+
 
 class RemoteApi(object):
 

@@ -30,6 +30,14 @@ class Buffer(Remote):
         """Return the number of lines contained in a Buffer."""
         return self.request('buffer_line_count')
 
+    def _get_lines(self, start, end, strict):
+        lines = self.request_raw('nvim_buf_get_lines', start, end, strict)
+        return [line.decode('utf8') for line in lines]
+
+    def _set_lines(self, start, end, strict, lines):
+        lines = [line.encode('utf8') for line in lines]
+        return self.request_raw('nvim_buf_set_lines', start, end, strict, lines)
+
     def __getitem__(self, idx):
         """Get a buffer line or slice by integer index.
 
@@ -42,10 +50,10 @@ class Buffer(Remote):
         """
         if not isinstance(idx, slice):
             i = adjust_index(idx)
-            return self.request('nvim_buf_get_lines', i, i + 1, True)[0]
+            return self._get_lines(i, i + 1, True)[0]
         start = adjust_index(idx.start, 0)
         end = adjust_index(idx.stop, -1)
-        return self.request('nvim_buf_get_lines', start, end, False)
+        return self._get_lines(start, end, False)
 
     def __setitem__(self, idx, item):
         """Replace a buffer line or slice by integer index.
@@ -58,11 +66,11 @@ class Buffer(Remote):
         if not isinstance(idx, slice):
             i = adjust_index(idx)
             lines = [item] if item is not None else []
-            return self.request('nvim_buf_set_lines', i, i + 1, True, lines)
+            return self._set_lines(i, i + 1, True, lines)
         lines = item if item is not None else []
         start = adjust_index(idx.start, 0)
         end = adjust_index(idx.stop, -1)
-        return self.request('buffer_set_lines', start, end, False, lines)
+        return self._set_lines(start, end, False, lines)
 
     def __iter__(self):
         """Iterate lines of a buffer.
@@ -87,7 +95,7 @@ class Buffer(Remote):
         """Append a string or list of lines to the buffer."""
         if isinstance(lines, (basestring, bytes)):
             lines = [lines]
-        return self.request('nvim_buf_set_lines', index, index, True, lines)
+        return self._set_lines(index, index, True, lines)
 
     def mark(self, name):
         """Return (row, col) tuple for a named mark."""

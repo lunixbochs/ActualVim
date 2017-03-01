@@ -106,6 +106,9 @@ class Nvim(object):
             return ExtType(*obj.code_data)
         return obj
 
+    def request_raw(self, name, *args, **kwargs):
+        return self._session.request(name, *args, **kwargs)
+
     def request(self, name, *args, **kwargs):
         r"""Send an API request or notification to nvim.
 
