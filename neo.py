@@ -8,6 +8,7 @@ import time
 
 from .lib import neovim
 from .lib import util
+from . import settings
 
 if not '_loaded' in globals():
     NEOVIM_PATH = None
@@ -21,9 +22,23 @@ SIMPLE_KEYS = [chr(c) for c in range(0x20, 0x7f)] + [
     '<left>', '<down>', '<right>', '<up>',
     '<del>', '<enter>', '<tab>'
 ]
+MODES = {
+    'n': 'normal',
+    'c': 'command',
+    # ex mode goes and stays "not ready"
+    # think I need UI hook to support it for now
+    'i':    'insert',
+    'R':    'replace',
+
+    'v':    'visual',
+    'V':    'visual line',
+    '\x16': 'visual block',
+    # TODO: select, vreplace?
+}
 
 def plugin_loaded():
     global NEOVIM_PATH
+    settings.load()
 
     NEOVIM_PATH = sublime.load_settings('ActualVim.sublime-settings').get('neovim_path')
     if not NEOVIM_PATH:
@@ -151,14 +166,15 @@ class Vim:
     def __init__(self, nv=None):
         self.nv = nv
         self.ready = threading.Lock()
-        if nv is None:
-            self.notif_cb = None
-            self.screen = Screen()
 
         self.mode_last = None
         self.mode_dirty = True
+        self.av = None
 
     def _setup(self):
+        self.notif_cb = None
+        self.screen = Screen()
+
         self.nv = neovim.attach('child', argv=[NEOVIM_PATH, '--embed'])
         self._sem = threading.Semaphore(0)
         self._thread = t = threading.Thread(target=self._event_loop)
@@ -173,6 +189,11 @@ class Vim:
     def _event_loop(self):
         def on_notification(method, updates):
             if method == 'redraw':
+                for cmd in updates:
+                    name, args = cmd[0], cmd[1:]
+                    if name == 'bell' and self.av:
+                        self.av.bell()
+
                 vim.screen.redraw(updates)
             if vim.notif_cb:
                 vim.notif_cb(method, updates)
@@ -194,10 +215,14 @@ class Vim:
         else:
             return [self.nv.eval(c) for c in cmds]
 
-    # buffer methods
-    def buf_activate(self, buf):
-        self.cmd('b! {:d}'.format(buf.number))
+    def activate(self, av):
+        if self.av != av:
+            self.av = av
+            self.cmd('b! {:d}'.format(av.buf.number))
+            return True
+        return False
 
+    # buffer methods
     def buf_new(self):
         self.cmd('enew')
         return max((b.number, b) for b in self.nv.buffers)[1]

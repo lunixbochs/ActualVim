@@ -4,6 +4,7 @@ import threading
 import traceback
 
 from . import neo
+from . import settings
 from .edit import Edit
 
 
@@ -14,17 +15,13 @@ def copy_sel(sel):
 
 # called by neo.py once neovim is loaded
 def neovim_loaded():
-    if enabled():
+    if settings.enabled():
         ActualVim.enable()
 
 try:
     _views
 except NameError:
     _views = {}
-
-def enabled():
-    settings = sublime.load_settings('ActualVim.sublime-settings')
-    return settings.get('enabled', True)
 
 
 class ActualVim:
@@ -46,7 +43,10 @@ class ActualVim:
         # first scroll is buggy
         self.first_scroll = True
 
-        en = enabled()
+        # settings are marked here when applying mode-specific settings, and erased after
+        self.tmpsettings = []
+
+        en = settings.enabled()
         s = {
             'actual_intercept': en,
             'actual_mode': en,
@@ -92,14 +92,10 @@ class ActualVim:
 
     @classmethod
     def enable(cls, enable=True):
-        settings = sublime.load_settings('ActualVim.sublime-settings')
-        settings.set('enabled', enable)
-        sublime.save_settings('ActualVim.sublime-settings')
-
         for av in _views.values():
-            settings = av.view.settings()
-            settings.set('actual_intercept', enable)
-            settings.set('actual_mode', enable)
+            s = av.view.settings()
+            s.set('actual_intercept', enable)
+            s.set('actual_mode', enable)
 
         # TODO: cursor isn't adjusted here, not sure why
         # (so if it's on a newline, it will stay there when caret switches)
@@ -108,11 +104,11 @@ class ActualVim:
             av.activate()
             av.sel_to_vim()
             av.sel_from_vim()
-            av.update_caret()
+        av.update_view()
 
     @property
     def actual(self):
-        return self.view and self.settings.get('actual_mode')
+        return neo._loaded and self.view and self.settings.get('actual_mode')
 
     def sel_changed(self):
         new_sel = copy_sel(self.view)
@@ -129,7 +125,11 @@ class ActualVim:
         a = view.text_point(sr, sc)
         b = view.text_point(er, ec)
 
-        if mode == 'V':
+        name = neo.MODES.get(mode)
+        if not name:
+            print('ActualVim warning: unhandled selection mode', repr(mode))
+
+        if name == 'visual line':
             # visual line mode
             if a > b:
                 start = view.line(a).b
@@ -139,14 +139,14 @@ class ActualVim:
                 end = view.line(b).b
 
             regions.append((start, end))
-        elif mode == 'v':
+        elif mode == 'visual':
             # visual mode
             if a > b:
                 a += 1
             else:
                 b += 1
             regions.append((a, b))
-        elif mode == '\x16':
+        elif mode == 'visual block':
             # visual block mode
             left = min(sc, ec)
             right = max(sc, ec) + 1
@@ -185,6 +185,29 @@ class ActualVim:
     def settings(self):
         return self.view.settings()
 
+    @property
+    def avsettings(self):
+        top = settings.get('settings', {})
+
+        base = {}
+        if not self.actual:
+            combined = top.get('sublime', {})
+            base['settings'] = combined
+        else:
+            combined = top.get('vim', {})
+            modes = combined.pop('modes')
+            mode = neo.vim.mode
+            name = neo.MODES.get(mode)
+            combined.update(modes.get(name, {}))
+            if mode in neo.VISUAL_MODES:
+                combined.update(modes.get('all visual', {}))
+            elif mode in neo.INSERT_MODES:
+                combined.update(modes.get('all insert', {}))
+
+            base['settings'] = combined
+            base['bell'] = combined.pop('bell')
+        return base
+
     def activate(self):
         if not neo._loaded: return
         neo.vim.force_ready()
@@ -193,17 +216,31 @@ class ActualVim:
             self.buf = neo.vim.buf_new()
             self.sync_to_vim()
 
-        # TODO: track active buffer and only run if swapping?
-        neo.vim.buf_activate(self.buf)
-        self.status_from_vim()
+        if neo.vim.activate(self):
+            self.status_from_vim()
+            self.update_view()
 
-    def update_caret(self):
-        if not neo._loaded: return
-        wide = False
-        if self.actual:
-            mode = neo.vim.mode
-            wide = (mode not in neo.INSERT_MODES + neo.VISUAL_MODES)
-        self.settings.set('inverse_caret_state', wide)
+    def bell(self):
+        bell = self.avsettings.get('bell', {})
+        duration = bell.pop('duration', None)
+        if duration:
+            def remove_bell():
+                for name in bell.keys():
+                    self.settings.erase(name)
+                self.update_view()
+
+            for k, v in bell.items():
+                self.settings.set(k, v)
+            sublime.set_timeout(remove_bell, int(duration * 1000))
+
+    def update_view(self):
+        combined = self.avsettings.get('settings', {})
+        for k in self.tmpsettings:
+            self.settings.erase(k)
+        self.tmpsettings = combined.keys()
+
+        for k, v in combined.items():
+            self.settings.set(k, v)
 
     def sync_to_vim(self, force=False):
         if not neo._loaded: return
@@ -255,7 +292,7 @@ class ActualVim:
                 vim.select(a, b)
 
             self.sel_from_vim()
-            self.update_caret()
+            self.update_view()
 
     def sel_from_vim(self, edit=None):
         if not neo._loaded: return
@@ -320,7 +357,7 @@ class ActualVim:
                 # to sublime, we get more events from sublime to figure out if we need to ignore
                 self.sync_from_vim()
                 # (trigger this somewhere else? vim mode change callback?)
-                self.update_caret()
+                self.update_view()
             return ready
 
     def close(self):
@@ -348,9 +385,9 @@ class ActualPanel:
     def show(self, char):
         window = self.view.window()
         self.panel = window.show_input_panel('Vim', char, self.on_done, None, self.on_cancel)
-        settings = self.panel.settings()
-        settings.set('actual_intercept', True)
-        settings.set('actual_proxy', self.view.id())
+        s = self.panel.settings()
+        s.set('actual_intercept', True)
+        s.set('actual_proxy', self.view.id())
         ActualVim.views[self.panel.id()] = self.actual
 
     def on_done(self, text):
