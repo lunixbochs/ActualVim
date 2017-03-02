@@ -170,6 +170,8 @@ class Vim:
         self.mode_last = None
         self.mode_dirty = True
         self.av = None
+        self.width = 80
+        self.height = 24
 
     def _setup(self):
         self.notif_cb = None
@@ -184,7 +186,7 @@ class Vim:
         self._sem.acquire()
         self.cmd('set noswapfile')
         self.cmd('set hidden')
-        self.nv.ui_attach(80, 24, True)
+        self.nv.ui_attach(self.width, self.height, True)
 
     def _event_loop(self):
         def on_notification(method, updates):
@@ -327,6 +329,11 @@ class Vim:
             if a < b:
                 b = [b[0], b[1] - 1]
             self.setpos('.', *b)
+
+    def resize(self, width, height):
+        w, h = int(width), int(height)
+        if w != self.width and h != self.height and self.check_ready():
+            self.nv.ui_try_resize(w, h)
 
     @property
     def mode(self):

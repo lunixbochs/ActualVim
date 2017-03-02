@@ -242,6 +242,10 @@ class ActualVim:
         for k, v in combined.items():
             self.settings.set(k, v)
 
+        vp = self.view.viewport_extent()
+        width, height = vp[0] / self.view.em_width(), vp[1] / self.view.line_height()
+        neo.vim.resize(width, height)
+
     def sync_to_vim(self, force=False):
         if not neo._loaded: return
         if self.block:
