@@ -82,6 +82,9 @@ def which(cmd):
         path = os.path.join(base, cmd)
         if can_exec(path):
             return path
+        if os.name == 'nt':
+            if not cmd.endswith('.exe') and can_exec(path + '.exe'):
+                return path + '.exe'
 
     return None
 
