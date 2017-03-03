@@ -315,18 +315,24 @@ class Vim:
         return self.eval('setpos("{}", [0, {:d}, {:d}])'.format(expr, line, col))
 
     def select(self, a, b=None, block=False):
-        add1 = lambda x: [n + 1 for n in x]
+        add1 = lambda x: tuple([n + 1 for n in x])
         a = add1(a)
+
         if b is None:
             if self.mode in VISUAL_MODES:
                 self.nv.input('<esc>')
+                self.mode_dirty = True
             self.eval('cursor({:d}, {:d}, {:d})'.format(a[0], a[1], a[1]))
         else:
             b = add1(b)
+            if b < a:
+                a = (a[0], a[1] - 1)
 
-            self.nv.input('<esc>')
+            if self.mode in VISUAL_MODES:
+                self.nv.input('<esc>')
             self.setpos('.', *a)
             self.cmd('normal! v')
+            self.mode_dirty = True
             # fix right hand side alignment
             if a < b:
                 b = [b[0], b[1] - 1]
