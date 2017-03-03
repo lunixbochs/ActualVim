@@ -116,14 +116,20 @@ class ActualVim:
         self.last_sel = new_sel
         return changed
 
+    def vim_text_point(self, row, col):
+        view = self.view
+        line = view.substr(view.line(view.text_point(row, 0)))
+        vcol = len(line.encode('utf-8')[:col].decode('utf-8'))
+        return view.text_point(row, vcol)
+
     def visual(self, mode, a, b):
         view = self.view
         regions = []
         sr, sc = a
         er, ec = b
 
-        a = view.text_point(sr, sc)
-        b = view.text_point(er, ec)
+        a = self.vim_text_point(sr, sc)
+        b = self.vim_text_point(er, ec)
 
         name = neo.MODES.get(mode)
         if not name:
