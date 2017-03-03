@@ -148,14 +148,14 @@ class ActualVim:
                 end = view.line(b).b
 
             regions.append((start, end))
-        elif mode == 'visual':
+        elif name == 'visual':
             # visual mode
             if a > b:
                 a += 1
             else:
                 b += 1
             regions.append((a, b))
-        elif mode == 'visual block':
+        elif name == 'visual block':
             # visual block mode
             left = min(sc, ec)
             right = max(sc, ec) + 1
