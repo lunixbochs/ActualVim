@@ -307,8 +307,9 @@ class Vim:
             self.mode_dirty = False
             self.mode_last = data.pop()
 
+        # TODO: update these like mode_dirty but with a better @cached_property type
         expandtab, ts, r1, c1, r2, c2 = data
-        return (r2 - 1, c2 - 1), (r1 - 1, c1 - 1)
+        return expandtab, ts, (r2 - 1, c2 - 1), (r1 - 1, c1 - 1)
 
     def setpos(self, expr, line, col):
         return self.eval('setpos("{}", [0, {:d}, {:d}])'.format(expr, line, col))

@@ -4,6 +4,7 @@ import sublime_plugin
 DEFAULT_SETTINGS = {
     "enabled": True,
     "neovim_path": "",
+    "indent_priority": "sublime",
     "settings": {
         "sublime": {
             "inverse_caret_state": False,

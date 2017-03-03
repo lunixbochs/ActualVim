@@ -46,6 +46,9 @@ class ActualVim:
         # settings are marked here when applying mode-specific settings, and erased after
         self.tmpsettings = []
 
+        # cached indentation settings
+        self.indent = None
+
         en = settings.enabled()
         s = {
             'actual_intercept': en,
@@ -252,6 +255,26 @@ class ActualVim:
         width, height = vp[0] / self.view.em_width(), vp[1] / self.view.line_height()
         neo.vim.resize(width, height)
 
+        # update_view is called all the time, and asking vim for things is expensive
+        # so vim's tab priority comes automatically during sel_from_vim()
+        if settings.get('indent_priority') == 'sublime':
+            self.settings_to_vim()
+
+    def settings_to_vim(self):
+        # only send this to vim if something changes
+        indent = [self.settings.get(s) for s in ('translate_tabs_to_spaces', 'tab_size')]
+        if indent != self.indent:
+            self.indent = indent
+            if indent[0]:
+                neo.vim.cmd('set expandtab ts={ts} shiftwidth={ts} softtabstop=0 smarttab'.format(ts=indent[1]))
+            else:
+                neo.vim.cmd('set noexpandtab softtabstop=0')
+
+    def settings_from_vim(self, et, ts):
+        if et:
+            self.settings.set('translate_tabs_to_spaces', et)
+        self.settings.set('tab_size', ts)
+
     def sync_to_vim(self, force=False):
         if not neo._loaded: return
         if self.block:
@@ -309,7 +332,9 @@ class ActualVim:
         if not self.actual:
             return
 
-        a, b = neo.vim.sel
+        et, ts, a, b = neo.vim.sel
+        if settings.get('indent_priority') == 'vim':
+            self.settings_from_vim(et, ts)
         new_sel = self.visual(neo.vim.mode, a, b)
 
         def select(view, edit):
