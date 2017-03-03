@@ -125,6 +125,13 @@ class ActualVim:
         vcol = len(line.encode('utf-8')[:col].decode('utf-8'))
         return view.text_point(row, vcol)
 
+    def vim_rowcol(self, point):
+        view = self.view
+        row, col = view.rowcol(point)
+        line = view.substr(view.line(point))
+        vcol = len(line[:col].decode('utf-8'))
+        return vcol
+
     def visual(self, mode, a, b):
         view = self.view
         regions = []
@@ -317,11 +324,11 @@ class ActualVim:
             # TODO multiple select vim plugin integration
             sel = self.view.sel()[0]
             vim = neo.vim
-            b = self.view.rowcol(sel.b)
+            b = self.vim_rowcol(sel.b)
             if sel.b == sel.a:
                 vim.select(b)
             else:
-                a = self.view.rowcol(sel.a)
+                a = self.vim_rowcol(sel.a)
                 vim.select(a, b)
 
             self.sel_from_vim()
