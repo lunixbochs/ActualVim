@@ -129,8 +129,8 @@ class ActualVim:
         view = self.view
         row, col = view.rowcol(point)
         line = view.substr(view.line(point))
-        vcol = len(line[:col].decode('utf-8'))
-        return vcol
+        vcol = len(line[:col].encode('utf-8'))
+        return row, vcol
 
     def visual(self, mode, a, b):
         view = self.view
