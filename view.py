@@ -190,7 +190,7 @@ class ActualVim:
     def changed(self):
         return any((
             self.changes is None or self.changes < self.view.change_count(),
-            # revert changes size without increasing change count
+            # "revert" changes size without increasing change count
             self.last_size is not None and self.last_size != self.view.size(),
         ))
 
