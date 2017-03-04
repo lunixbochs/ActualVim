@@ -53,12 +53,12 @@ def enabled():
     return settings and settings.get('enabled')
 
 def enable():
-    from .view import ActualVim
     set('enabled', True)
+    save()
 
 def disable():
-    from .view import ActualVim
     set('enabled', False)
+    save()
 
 def _changed():
     from .view import ActualVim

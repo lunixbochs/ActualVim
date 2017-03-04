@@ -13,7 +13,7 @@ class ActualEnable(sublime_plugin.ApplicationCommand):
         return not settings.enabled()
 
     def run(self):
-        settings.disable()
+        settings.enable()
 
 
 class ActualDisable(sublime_plugin.ApplicationCommand):
@@ -21,7 +21,7 @@ class ActualDisable(sublime_plugin.ApplicationCommand):
         return settings.enabled()
 
     def run(self):
-        settings.enable()
+        settings.disable()
 
 
 class ActualKeypress(sublime_plugin.TextCommand):
@@ -67,6 +67,7 @@ class ActualViewListener(sublime_plugin.ViewEventListener):
 
     def on_post_save_async(self):
         self.v.set_path(view.file_name())
+
 
 class ActualGlobalListener(sublime_plugin.EventListener):
     def on_new(self, view):
