@@ -16,7 +16,7 @@ if not '_loaded' in globals():
 
 INSERT_MODES = ['i', 'R']
 VISUAL_MODES = ['V', 'v', '\x16']
-HALF_KEYS = ['d', 'y', 'c', '<lt>', '>']
+HALF_KEYS = ['d', 'y', 'c', '<lt>', '>', '=']
 SIMPLE_KEYS = [chr(c) for c in range(0x20, 0x7f)] + [
     '<bs>', '<lt>',
     '<left>', '<down>', '<right>', '<up>',
