@@ -290,7 +290,6 @@ class Vim:
             ready = self._ask_async_ready()
         if ready:
             self.ready.release()
-
         return ret, ready
 
     @property
@@ -315,19 +314,12 @@ class Vim:
         return self.eval('setpos("{}", [0, {:d}, {:d}])'.format(expr, line, col))
 
     def select(self, a, b=None, mode='v'):
-        add1 = lambda x: tuple([n + 1 for n in x])
-        a = add1(a)
-
         if b is None:
             if self.mode in VISUAL_MODES:
                 self.nv.input('<esc>')
                 self.mode_dirty = True
             self.eval('cursor({:d}, {:d}, {:d})'.format(a[0], a[1], a[1]))
         else:
-            b = add1(b)
-            if b < a:
-                a = (a[0], a[1] - 1)
-
             special = mode.startswith('<c-')
             if self.mode in VISUAL_MODES:
                 self.nv.input('<esc>')
@@ -338,9 +330,6 @@ class Vim:
             else:
                 self.cmd('normal! {}'.format(mode))
             self.mode_dirty = True
-            # fix right hand side alignment
-            if a < b:
-                b = [b[0], b[1] - 1]
             self.setpos('.', *b)
 
     def resize(self, width, height):

@@ -329,6 +329,7 @@ class ActualVim:
             sel = self.view.sel()[0]
             vim = neo.vim
             b = self.vim_rowcol(sel.b)
+            b = (b[0] + 1, b[1] + 1)
 
             mode = 'v'
             if self.drag_select == 'lines':
@@ -340,12 +341,21 @@ class ActualVim:
                 first, last = sel[0], sel[-1]
                 a = self.vim_rowcol(last.a)
                 b = self.vim_rowcol(first.b)
+                a = (a[0] + 1, a[1] + 1)
+                b = (b[0] + 1, b[1] + 1)
+                if b[1] > a[1]:
+                    b = (b[0], b[1] - 1)
                 vim.select(a, b, mode=mode)
             else:
                 if sel.b == sel.a:
                     vim.select(b)
                 else:
                     a = self.vim_rowcol(sel.a)
+                    a = (a[0] + 1, a[1] + 1)
+                    if a > b:
+                        a = (a[0], a[1] - 1)
+                    elif b > a:
+                        b = (b[0], b[1] - 1)
                     if self.drag_select == 'lines':
                         mode = 'V'
                         if a > b:
