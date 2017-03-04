@@ -87,6 +87,9 @@ class ActualGlobalListener(sublime_plugin.EventListener):
         if not v:
             return
 
+        if name == 'drag_select':
+            v.drag_select = args.get('by')
+
         if not name.startswith('actual_'):
             v.block = True
 

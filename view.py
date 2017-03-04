@@ -49,6 +49,9 @@ class ActualVim:
         # cached indentation settings
         self.indent = None
 
+        # tracks our drag_select type
+        self.drag_select = None
+
         en = settings.enabled()
         s = {
             'actual_intercept': en,
@@ -153,7 +156,6 @@ class ActualVim:
             else:
                 start = view.line(a).a
                 end = view.line(b).b
-
             regions.append((start, end))
         elif name == 'visual':
             # visual mode
@@ -176,6 +178,8 @@ class ActualVim:
                 if left <= end:
                     a = view.text_point(i, left)
                     b = view.text_point(i, min(right, end))
+                    if sc > ec:
+                        a, b = b, a
                     regions.append((a, b))
         else:
             regions.append((a, b))
@@ -325,11 +329,30 @@ class ActualVim:
             sel = self.view.sel()[0]
             vim = neo.vim
             b = self.vim_rowcol(sel.b)
-            if sel.b == sel.a:
-                vim.select(b)
+
+            mode = 'v'
+            if self.drag_select == 'lines':
+                mode = 'V'
+
+            if self.drag_select == 'columns':
+                mode = '<c-v>'
+                sel = self.view.sel()
+                first, last = sel[0], sel[-1]
+                a = self.vim_rowcol(last.a)
+                b = self.vim_rowcol(first.b)
+                vim.select(a, b, mode=mode)
             else:
-                a = self.vim_rowcol(sel.a)
-                vim.select(a, b)
+                if sel.b == sel.a:
+                    vim.select(b)
+                else:
+                    a = self.vim_rowcol(sel.a)
+                    if self.drag_select == 'lines':
+                        mode = 'V'
+                        if a > b:
+                            a = (a[0] - 1, a[1])
+                        else:
+                            b = (b[0] - 1, b[1])
+                    vim.select(a, b, mode=mode)
 
             self.sel_from_vim()
             self.update_view()

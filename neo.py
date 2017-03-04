@@ -314,7 +314,7 @@ class Vim:
     def setpos(self, expr, line, col):
         return self.eval('setpos("{}", [0, {:d}, {:d}])'.format(expr, line, col))
 
-    def select(self, a, b=None, block=False):
+    def select(self, a, b=None, mode='v'):
         add1 = lambda x: tuple([n + 1 for n in x])
         a = add1(a)
 
@@ -328,10 +328,15 @@ class Vim:
             if b < a:
                 a = (a[0], a[1] - 1)
 
+            special = mode.startswith('<c-')
             if self.mode in VISUAL_MODES:
                 self.nv.input('<esc>')
+
             self.setpos('.', *a)
-            self.cmd('normal! v')
+            if special:
+                self.cmd('exe "normal! \\{}"'.format(mode))
+            else:
+                self.cmd('normal! {}'.format(mode))
             self.mode_dirty = True
             # fix right hand side alignment
             if a < b:
