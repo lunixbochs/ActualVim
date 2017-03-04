@@ -1,4 +1,7 @@
 [
+    { "keys": ["ctrl+s"], "context": [{"key": "setting.actual_mode", "operand": true}],  "command": "actual_disable"},
+    { "keys": ["ctrl+s"], "context": [{"key": "setting.actual_mode", "operand": false}], "command": "actual_enable"},
+
     { "keys": ["escape"],       "args": {"key": "<esc>"},    "context": [{ "key": "setting.actual_mode", "operand": true }], "command": "actual_keypress" },
     { "keys": ["shift+escape"], "args": {"key": "<esc>"},    "context": [{ "key": "setting.actual_mode", "operand": true }], "command": "actual_keypress" },
 
