@@ -4,6 +4,7 @@ from collections import deque
 from queue import Queue
 
 from traceback import format_exc
+import traceback
 
 # we don't have greenlet in st3
 import threading
@@ -37,7 +38,7 @@ class Session(object):
             try:
                 fn(*args, **kwargs)
             except Exception:
-                pass
+                traceback.print_exc()
 
         def greenlet_wrapper():
             spawn_thread(handler)
