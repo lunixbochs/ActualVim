@@ -308,16 +308,27 @@ class ActualVim:
         if not self.actual:
             return
 
-        with self.busy:
-            self.mark_changed(1)
-            # TODO: global UI change is GROSS, do deltas if possible
-            text = '\n'.join(self.buf[:])
-            everything = sublime.Region(0, self.view.size())
-            if self.view.substr(everything) != text:
-                with Edit(self.view) as edit:
-                    edit.replace(everything, text)
-            self.sel_from_vim()
-            self.status_from_vim()
+        def update(view, edit):
+            with self.busy:
+                # TODO: global UI change is GROSS, do deltas if possible
+                text = '\n'.join(self.buf[:])
+                everything = sublime.Region(0, view.size())
+                if self.view.substr(everything) != text:
+                    sel = view.sel()
+                    r = sel[0]
+                    for s in list(sel)[1:]:
+                        r = r.cover(s)
+                    view.replace(edit, sublime.Region(r.begin(), view.size()), text[r.begin():])
+                    view.replace(edit, sublime.Region(0, r.begin()), text[:r.begin()])
+
+                self.mark_changed()
+                self.sel_from_vim()
+                self.status_from_vim()
+
+        if edit:
+            update(self.view, edit)
+        else:
+            Edit.defer(self.view, update)
 
     def sel_to_vim(self, force=False):
         if not neo._loaded: return
@@ -404,10 +415,10 @@ class ActualVim:
                 else:
                     view.show(sel)
 
-        if edit is None:
-            Edit.defer(self.view, select)
+        if edit:
+            select(self.view, edit)
         else:
-            edit.callback(select)
+            Edit.defer(self.view, select)
 
     def status_from_vim(self):
         status = neo.vim.status_line
