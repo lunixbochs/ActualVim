@@ -1,5 +1,6 @@
 [
-    { "keys": ["escape"],     "args": {"key": "<esc>"},      "context": [{ "key": "setting.actual_mode", "operand": true }], "command": "actual_keypress" },
+    { "keys": ["escape"],       "args": {"key": "<esc>"},    "context": [{ "key": "setting.actual_mode", "operand": true }], "command": "actual_keypress" },
+    { "keys": ["shift+escape"], "args": {"key": "<esc>"},    "context": [{ "key": "setting.actual_mode", "operand": true }], "command": "actual_keypress" },
 
     { "keys": [" "],          "args": {"key": " "},          "context": [{ "key": "setting.actual_intercept", "operand": true }], "command": "actual_keypress" },
     { "keys": ["!"],          "args": {"key": "!"},          "context": [{ "key": "setting.actual_intercept", "operand": true }], "command": "actual_keypress" },
