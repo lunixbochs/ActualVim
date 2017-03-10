@@ -67,12 +67,15 @@ def plugin_loaded():
 
     if not NEOVIM_PATH:
         raise Exception('cannot find nvim executable')
+    print('ActualVim: using nvim binary path:', NEOVIM_PATH)
 
     global vim, _loaded
     if 'vim' in globals():
         new = Vim(vim.nv)
+        # anything set in _setup needs to be copied over
         new.notif_cb = vim.notif_cb
         new.screen = vim.screen
+        new.nvim_mode = vim.nvim_mode
         vim = new
     else:
         vim = Vim()
@@ -81,6 +84,7 @@ def plugin_loaded():
         _loaded = True
         from .view import neovim_loaded
         neovim_loaded()
+        print('ActualVim: nvim started')
 
 
 class Screen:
@@ -188,6 +192,12 @@ class Vim:
         self.cmd('set hidden')
         self.nv.ui_attach(self.width, self.height, True)
 
+        try:
+            self.nv.request('nvim_get_mode')
+            self.nvim_mode = True
+        except neovim.api.NvimError:
+            self.nvim_mode = False
+
     def _event_loop(self):
         def on_notification(method, updates):
             if method == 'redraw':
@@ -287,7 +297,12 @@ class Vim:
             # TODO: this is an assumption and could break in custom setups
             ready = True
         else:
-            ready = self._ask_async_ready()
+            if self.nvim_mode:
+                self.last_mode, blocked = self.nv.request('nvim_get_mode')
+                self.mode_dirty = False
+                ready = not blocked
+            else:
+                ready = self._ask_async_ready()
         if ready:
             self.ready.release()
         return ret, ready
