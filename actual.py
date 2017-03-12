@@ -1,3 +1,12 @@
+# work around Package Control installing as ActualVim instead of actualvim
+# this needs to happen before view.py import
+import sys
+try:
+    import actualvim
+except ImportError:
+    import ActualVim as actualvim
+    sys.modules['actualvim'] = actualvim
+
 import json
 import os
 import sublime
