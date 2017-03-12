@@ -97,7 +97,7 @@ class Screen:
         self.w = w
         self.h = h
         # TODO: should resize clear?
-        self.screen = [[''] * w for i in range(h)]
+        self.screen = [[' '] * w for i in range(h)]
         self.scroll_region = [0, self.h, 0, self.w]
 
     def clear(self):
