@@ -309,8 +309,7 @@ class ActualVim:
 
     def sync_from_vim(self, edit=None):
         if not neo._loaded: return
-        if not self.actual:
-            return
+        if not self.actual: return
 
         def update(view, edit):
             with self.busy:
@@ -336,6 +335,7 @@ class ActualVim:
 
     def sel_to_vim(self, force=False):
         if not neo._loaded: return
+        if not self.actual: return
         if self.sel_changed():
             neo.vim.force_ready()
             # single selection for now...
@@ -384,8 +384,7 @@ class ActualVim:
 
     def sel_from_vim(self, edit=None):
         if not neo._loaded: return
-        if not self.actual:
-            return
+        if not self.actual: return
 
         et, ts, a, b = neo.vim.sel
         if settings.get('indent_priority') == 'vim':
