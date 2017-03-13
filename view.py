@@ -234,7 +234,11 @@ class ActualVim:
         # first activate
         if self.buf is None:
             self.buf = neo.vim.buf_new()
+            # disable undo on first insert
+            self.buf.set_option('undolevels', -1)
             self.sync_to_vim()
+            # re-enable undo
+            self.buf.set_option('undolevels', -123456)
 
         if neo.vim.activate(self):
             self.status_from_vim()
