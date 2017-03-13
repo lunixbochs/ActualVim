@@ -78,13 +78,20 @@ def plugin_loaded():
         new.nvim_mode = vim.nvim_mode
         vim = new
     else:
-        vim = Vim()
-        vim._setup()
+        try:
+            vim = Vim()
+            vim._setup()
 
-        _loaded = True
-        from .view import neovim_loaded
-        neovim_loaded()
-        print('ActualVim: nvim started')
+            _loaded = True
+            from .view import neovim_loaded
+            neovim_loaded()
+            print('ActualVim: nvim started')
+        except Exception:
+            print('ActualVim: Error during nvim setup.')
+            traceback.print_exc()
+            _loaded = False
+            vim = None
+            del vim
 
 
 class Screen:
@@ -181,7 +188,11 @@ class Vim:
         self.notif_cb = None
         self.screen = Screen()
 
-        self.nv = neovim.attach('child', argv=[NEOVIM_PATH, '--embed'])
+        args = settings.get('neovim_args') or []
+        if not isinstance(args, list):
+            print('ActualVim: ignoring non-list ({}) args: {}'.format(type(args), repr(args)))
+            args = []
+        self.nv = neovim.attach('child', argv=[NEOVIM_PATH, '--embed'] + args)
         self._sem = threading.Semaphore(0)
         self._thread = t = threading.Thread(target=self._event_loop)
         t.daemon = True

@@ -4,6 +4,7 @@ import sublime_plugin
 DEFAULT_SETTINGS = {
     "enabled": True,
     "neovim_path": "",
+    "neovim_args": ["--cmd", "let g:actualvim = 1"],
     "indent_priority": "sublime",
     "settings": {
         "sublime": {
