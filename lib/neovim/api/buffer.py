@@ -116,10 +116,6 @@ class Buffer(Remote):
         self.request('nvim_buf_clear_highlight', src_id,
                      line_start, line_end, async=async)
 
-    def set_option(self, option, value):
-        """Set buffer option."""
-        self.request('nvim_buf_set_option', option, value)
-
     @property
     def name(self):
         """Get the buffer name."""
