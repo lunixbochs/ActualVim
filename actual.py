@@ -38,10 +38,15 @@ class ActualKeypress(sublime_plugin.TextCommand):
         v = ActualVim.get(self.view, exact=False, create=False)
         return bool(v)
 
-    def run(self, edit, key):
+    def run(self, edit, key=None, character=None):
         v = ActualVim.get(self.view, exact=False, create=False)
         if v:
-            v.press(key)
+            if character is not None:
+                key = character
+            if key is not None:
+                if key == '<':
+                    key = '<lt>'
+                v.press(key)
 
 
 class ActualViewListener(sublime_plugin.ViewEventListener):
