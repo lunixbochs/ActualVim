@@ -201,8 +201,9 @@ class Vim:
 
         self._sem.acquire()
         self.cmd('set noswapfile')
-        self.cmd('set hidden')
-        self.nv.ui_attach(self.width, self.height, True)
+        self.nv.options['hidden'] = True
+        options = {'popupmenu_external': True}
+        self.nv.ui_attach(self.width, self.height, options)
 
         try:
             self.nv.request('nvim_get_mode')
@@ -215,8 +216,11 @@ class Vim:
             if method == 'redraw':
                 for cmd in updates:
                     name, args = cmd[0], cmd[1:]
+                    # TODO: allow subscribing to these
                     if name == 'bell' and self.av:
-                        self.av.bell()
+                        self.av.on_bell()
+                    elif name in ('popupmenu_show', 'popupmenu_hide', 'popupmenu_select'):
+                        self.av.on_popupmenu(name, args)
 
                 vim.screen.redraw(updates)
             if vim.notif_cb:

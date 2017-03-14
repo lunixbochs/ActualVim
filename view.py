@@ -1,3 +1,4 @@
+import html
 import queue
 import sublime
 import threading
@@ -51,6 +52,9 @@ class ActualVim:
 
         # tracks our drag_select type
         self.drag_select = None
+
+        # tracks popup menu status
+        self.popup = None
 
         en = settings.enabled()
         s = {
@@ -243,19 +247,6 @@ class ActualVim:
         if neo.vim.activate(self):
             self.status_from_vim()
             self.update_view()
-
-    def bell(self):
-        bell = self.avsettings.get('bell', {})
-        duration = bell.pop('duration', None)
-        if duration:
-            def remove_bell():
-                for name in bell.keys():
-                    self.settings.erase(name)
-                self.update_view()
-
-            for k, v in bell.items():
-                self.settings.set(k, v)
-            sublime.set_timeout(remove_bell, int(duration * 1000))
 
     def update_view(self):
         combined = self.avsettings.get('settings', {})
@@ -458,6 +449,69 @@ class ActualVim:
 
     def set_path(self, path):
         self.buf.name = path
+
+    # neovim event callbacks
+    def on_bell(self):
+        bell = self.avsettings.get('bell', {})
+        duration = bell.pop('duration', None)
+        if duration:
+            def remove_bell():
+                for name in bell.keys():
+                    self.settings.erase(name)
+                self.update_view()
+
+            for k, v in bell.items():
+                self.settings.set(k, v)
+            sublime.set_timeout(remove_bell, int(duration * 1000))
+
+    def on_popupmenu(self, cmd, args):
+        def render(update=False):
+            if self.popup:
+                template = '''
+                    <style>
+                        .actualvim-popup-item-selected {{
+                            background-color: color(var(--background) blend(grey 80%));
+                        }}
+                        .actualvim-popup-item {{
+                            padding: 6px 14px 6px 14px;
+                        }}
+                        html, body, #actualvim-popup {{
+                            padding: 0;
+                            margin: 0;
+                        }}
+                    </style>
+                    <div id="actualvim-popup">
+                    {items}
+                    </div>
+                '''
+                # TODO: use item['kind']?
+                item_template = '''
+                <div class="actualvim-popup-item{classes}">{text}</div>
+                '''
+                items = []
+                for i, item in enumerate(self.popup['items']):
+                    item = item.copy()
+                    item['classes'] = ''
+                    if i == self.popup['selected']:
+                        item['classes'] = ' actualvim-popup-item-selected'
+                    items.append(item_template.format_map(item))
+                html = template.format(items='\n'.join(items))
+                if self.view.is_popup_visible() and update:
+                    self.view.update_popup(html)
+                else:
+                    self.view.show_popup(html, 0, -1, 300, 600, None, None)
+
+        if cmd == 'popupmenu_show':
+            items, selected, row, col = args[0]
+            items = [{'text': html.escape(item[0]), 'kind': html.escape(item[1])} for item in items]
+            self.popup = {'items': items, 'selected': selected, 'pos': (row, col)}
+            render(update=False)
+        elif cmd == 'popupmenu_hide':
+            self.view.hide_popup()
+        elif cmd == 'popupmenu_select':
+            if self.popup:
+                self.popup['selected'] = args[0][0]
+            render(update=True)
 
 
 class ActualPanel:

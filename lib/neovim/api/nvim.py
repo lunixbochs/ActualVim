@@ -189,24 +189,24 @@ class Nvim(object):
         return Nvim(self._session, self.channel_id,
                     self.metadata, self.types, decode, self._err_cb)
 
-    def ui_attach(self, width, height, rgb):
+    def ui_attach(self, width, height, options):
         """Register as a remote UI.
 
         After this method is called, the client will receive redraw
         notifications.
         """
-        return self.request('ui_attach', width, height, rgb)
+        return self.request('nvim_ui_attach', width, height, options)
 
     def ui_detach(self):
         """Unregister as a remote UI."""
-        return self.request('ui_detach')
+        return self.request('nvim_ui_detach')
 
     def ui_try_resize(self, width, height):
         """Notify nvim that the client window has resized.
 
         If possible, nvim will send a redraw request to resize.
         """
-        return self.request('ui_try_resize', width, height)
+        return self.request('nvim_ui_try_resize', width, height)
 
     def subscribe(self, event):
         """Subscribe to a Nvim event."""
