@@ -314,8 +314,7 @@ class Vim:
             ready = True
         else:
             if self.nvim_mode:
-                self.last_mode, blocked = self.nv.request('nvim_get_mode')
-                self.mode_dirty = False
+                _, blocked = self.nv.request('nvim_get_mode')
                 ready = not blocked
             else:
                 ready = self._ask_async_ready()
