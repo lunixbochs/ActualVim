@@ -5,6 +5,7 @@ import sublime
 import sys
 import threading
 import time
+import traceback
 
 from .lib import neovim
 from .lib import util
