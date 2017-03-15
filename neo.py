@@ -289,7 +289,8 @@ class Vim:
         self.cmd('enew')
         buf = max((b.number, b) for b in self.nv.buffers)[1]
         buf.options['buftype'] = 'acwrite'
-        buf.options['completefunc'] = 'ActualVimComplete'
+        for k, v in settings.get('bufopts').items():
+            buf.options[k] = v
         self.views[buf.number] = view
         return buf
 
