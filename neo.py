@@ -77,6 +77,7 @@ def plugin_loaded():
         new.notif_cb = vim.notif_cb
         new.screen = vim.screen
         new.nvim_mode = vim.nvim_mode
+        new.views = vim.views
         vim = new
     else:
         try:
@@ -188,6 +189,7 @@ class Vim:
     def _setup(self):
         self.notif_cb = None
         self.screen = Screen()
+        self.views = {}
 
         args = settings.get('neovim_args') or []
         if not isinstance(args, list):
@@ -209,6 +211,7 @@ class Vim:
         cmd = 'autocmd {{}} * :call rpcrequest({}, "{{}}", expand("<abuf>"), expand("<afile>"))'.format(self.nv.channel_id)
         self.cmd(cmd.format('BufReadCmd', 'read'))
         self.cmd(cmd.format('BufWriteCmd', 'write'))
+        self.cmd(cmd.format('BufEnter', 'enter'))
 
         try:
             self.nv.request('nvim_get_mode')
@@ -237,6 +240,8 @@ class Vim:
             if method == 'write':
                 if self.av:
                     self.av.on_write()
+            elif method == 'enter':
+                pass # TODO: focus view?
             elif method == 'read':
                 pass # TODO: pivot view?
             return ''
@@ -263,13 +268,15 @@ class Vim:
         return False
 
     # buffer methods
-    def buf_new(self):
+    def buf_new(self, view):
         self.cmd('enew')
         buf = max((b.number, b) for b in self.nv.buffers)[1]
         buf.options['buftype'] = 'acwrite'
+        self.views[buf.number] = view
         return buf
 
     def buf_close(self, buf):
+        self.views.pop(buf.number, None)
         self.cmd('bw! {:d}'.format(buf.number))
 
     # readiness checking methods stuff
