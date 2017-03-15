@@ -1,4 +1,3 @@
-import html
 import queue
 import sublime
 import sublime_plugin
@@ -471,6 +470,9 @@ class ActualVim:
             sublime.set_timeout(remove_bell, int(duration * 1000))
 
     def on_popupmenu(self, cmd, args):
+        def html_escape(s):
+            return s.replace('&', '&amp;').replace('<', '&lt;')
+
         def render(update=False):
             if self.popup:
                 template = '''
@@ -509,7 +511,7 @@ class ActualVim:
 
         if cmd == 'popupmenu_show':
             items, selected, row, col = args[0]
-            items = [{'text': html.escape(item[0]), 'kind': html.escape(item[1])} for item in items]
+            items = [{'text': html_escape(item[0]), 'kind': html_escape(item[1])} for item in items]
             self.popup = {'items': items, 'selected': selected, 'pos': (row, col)}
             render(update=False)
         elif cmd == 'popupmenu_hide':
