@@ -132,6 +132,8 @@ class Screen:
             'update_fb', 'update_bg', 'update_sp', 'clear',
         ]
         for cmd in updates:
+            if not cmd:
+                continue
             name, args = cmd[0], cmd[1:]
             if name == 'cursor_goto':
                 self.y, self.x = args[0]
@@ -203,15 +205,22 @@ class Vim:
 
         self._sem.acquire()
         self.nv.options['hidden'] = True
+
+        # set up UI
         options = {'popupmenu_external': True}
         self.nv.ui_attach(self.width, self.height, options)
 
-        # set up buffer saving commands
-        # self.cmd('autocmd BufWritePre * :call rpcrequest({}, "pre_save")'.format(repr(self.nv.channel_id)))
+        # set up buffer read/write commands
         cmd = 'autocmd {{}} * :call rpcrequest({}, "{{}}", expand("<abuf>"), expand("<afile>"))'.format(self.nv.channel_id)
+        # self.cmd(cmd.format('BufWritePre', 'write_pre'))
         self.cmd(cmd.format('BufReadCmd', 'read'))
         self.cmd(cmd.format('BufWriteCmd', 'write'))
         self.cmd(cmd.format('BufEnter', 'enter'))
+
+        # set up autocomplete from Sublime via completefunc (ctrl-x, ctrl-u)
+        # TODO: make this a setting, or at least the buf.options['completefunc'] part
+        complete = r'''return rpcrequest({}, \"complete\", bufnr(\"%\"), a:findstart, a:base)'''.format(self.nv.channel_id)
+        self.eval(r'''execute(":function! ActualVimComplete(findstart, base) \n {} \n endfunction")'''.format(complete))
 
         try:
             self.nv.request('nvim_get_mode')
@@ -220,31 +229,39 @@ class Vim:
             self.nvim_mode = False
 
     def _event_loop(self):
-        def on_notification(method, updates):
+        def on_notification(method, args):
             if method == 'redraw':
-                for cmd in updates:
+                for cmd in args:
                     name, args = cmd[0], cmd[1:]
                     # TODO: allow subscribing to these
                     if name == 'bell' and self.av:
                         self.av.on_bell()
                     elif name in ('popupmenu_show', 'popupmenu_hide', 'popupmenu_select'):
                         self.av.on_popupmenu(name, args)
-
-                vim.screen.redraw(updates)
+                vim.screen.redraw(args)
             if vim.notif_cb:
-                vim.notif_cb(method, updates)
+                vim.notif_cb(method, args)
 
         def on_request(method, args):
-            # TODO: args are buffer id and filename
-            # make sure they match...
+            # TODO: what if I need to handle requests that don't start with bufid?
+            bufid = int(args.pop(0))
+            av = self.views.get(bufid)
+            if not av:
+                # TODO: this spews on first "enter"
+                print('ActualVim: request "{}" failed: buf:{} has no view'.format(method, bufid))
+                return
             if method == 'write':
-                if self.av:
-                    self.av.on_write()
-            elif method == 'enter':
-                pass # TODO: focus view?
+                # TODO: filename arg?
+                return av.on_write()
             elif method == 'read':
-                pass # TODO: pivot view?
-            return ''
+                # TODO: filename arg?
+                # TODO: pivot view?
+                pass
+            elif method == 'enter':
+                # TODO: focus view?
+                pass
+            elif method == 'complete':
+                return av.on_complete(args[0], args[1])
 
         def on_setup():
             self._sem.release()
@@ -272,6 +289,7 @@ class Vim:
         self.cmd('enew')
         buf = max((b.number, b) for b in self.nv.buffers)[1]
         buf.options['buftype'] = 'acwrite'
+        buf.options['completefunc'] = 'ActualVimComplete'
         self.views[buf.number] = view
         return buf
 
@@ -279,7 +297,7 @@ class Vim:
         self.views.pop(buf.number, None)
         self.cmd('bw! {:d}'.format(buf.number))
 
-    # readiness checking methods stuff
+    # neovim 'readiness' methods
     # if you don't use check/force_ready and control your input/cmd interleaving, you'll hang all the time
     def check_ready(self):
         ready = self.ready.acquire(False)

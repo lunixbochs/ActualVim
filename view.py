@@ -1,6 +1,7 @@
 import html
 import queue
 import sublime
+import sublime_plugin
 import threading
 import traceback
 
@@ -521,6 +522,27 @@ class ActualVim:
     def on_write(self):
         self.view.run_command('save')
 
+    def on_complete(self, findstart, base):
+        def cur():
+            modified, et, ts, a, b = neo.vim.status
+            sel = self.visual(neo.vim.mode, a, b)
+            return sel[0].b
+
+        if int(findstart):
+            word = self.view.word(cur())
+            r, c = self.vim_rowcol(word.a)
+            return c
+
+        loc = cur()
+        completions, flags = sublime_plugin.on_query_completions(self.view.id(), base, [loc])
+        if not flags & sublime.INHIBIT_WORD_COMPLETIONS:
+            completions += self.view.extract_completions(base)
+
+        # TODO: .sublime-completion support?
+        if not flags & sublime.INHIBIT_EXPLICIT_COMPLETIONS:
+            pass
+
+        return completions
 
 class ActualPanel:
     def __init__(self, actual):
