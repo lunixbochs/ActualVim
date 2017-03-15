@@ -16,8 +16,16 @@ def copy_sel(sel):
 
 # called by neo.py once neovim is loaded
 def neovim_loaded():
+    # ensure we have the newest neo module
+    global neo
+    from . import neo
+
     if settings.enabled():
         ActualVim.enable()
+
+def neovim_unloaded():
+    if neo._loaded and settings.enabled():
+        ActualVim.enable(False)
 
 try:
     _views

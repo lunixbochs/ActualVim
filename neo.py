@@ -95,6 +95,16 @@ def plugin_loaded():
             vim = None
             del vim
 
+def plugin_unloaded():
+    from .view import neovim_unloaded
+    neovim_unloaded()
+
+    global vim, _loaded
+    if _loaded:
+        vim.nv.command('qa!', async=True)
+        vim = None
+        _loaded = False
+
 
 class Screen:
     def __init__(self):
@@ -230,6 +240,10 @@ class Vim:
 
     def _event_loop(self):
         def on_notification(method, args):
+            # if vim exits, we might get a notification on the way out
+            if not vim:
+                return
+
             if method == 'redraw':
                 for cmd in args:
                     name, args = cmd[0], cmd[1:]

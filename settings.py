@@ -53,8 +53,15 @@ def load():
         save()
     was_enabled = enabled()
 
+# proxy settings load
+# this is necessary due to a bug when disabling/enabling via package control
+def s():
+    if not settings:
+        load()
+    return settings
+
 def enabled():
-    return settings and settings.get('enabled')
+    return s().get('enabled')
 
 def enable():
     set('enabled', True)
@@ -77,13 +84,13 @@ def _changed():
         ActualVim.enable(en)
 
 def set(key, value):
-    return settings.set(key, value)
+    return s().set(key, value)
 
 def has(key):
-    return settings.has(key)
+    return s().has(key)
 
 def get(key, default=None):
-    return settings.get(key, default)
+    return s().get(key, default)
 
 def save():
     sublime.save_settings('ActualVim.sublime-settings')
