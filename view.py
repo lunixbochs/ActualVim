@@ -36,7 +36,8 @@ class ActualVim:
         self.view = view
         self.last_sel = None
         self.buf = None
-        self.changes = None
+        self.sub_changes = None
+        self.vim_changes = None
         self.last_size = None
         self.block = False
         self.block_hit = False
@@ -194,13 +195,13 @@ class ActualVim:
     @property
     def changed(self):
         return any((
-            self.changes is None or self.changes < self.view.change_count(),
+            self.sub_changes is None or self.sub_changes < self.view.change_count(),
             # "revert" changes size without increasing change count
             self.last_size is not None and self.last_size != self.view.size(),
         ))
 
     def mark_changed(self, advance=0):
-        self.changes = self.view.change_count() + advance
+        self.sub_changes = self.view.change_count() + advance
         if advance:
             self.last_size = None
         else:
@@ -302,6 +303,7 @@ class ActualVim:
         text = self.view.substr(sublime.Region(0, self.view.size())).split('\n')
         self.buf[:] = text
         self.sel_to_vim(force)
+        self.vim_changes = neo.vim.buf_tick(self.buf)
 
     def sync_from_vim(self, edit=None):
         if not neo._loaded: return
@@ -309,10 +311,14 @@ class ActualVim:
 
         def update(view, edit):
             with self.busy:
-                # TODO: global UI change is GROSS, do deltas if possible
-                text = '\n'.join(self.buf[:])
-                everything = sublime.Region(0, view.size())
-                if self.view.substr(everything) != text:
+                # only sync text content if vim buffer changed
+                # TODO: change to buf.vars['changedtick'] when neovim master (0.2.0?) is stable
+                # TODO: batch this with sel/status?
+                tick = neo.vim.buf_tick(self.buf)
+                if self.vim_changes is None or tick > self.vim_changes:
+                    self.vim_changes = tick
+                    # TODO: global UI change is GROSS, do deltas if possible
+                    text = '\n'.join(self.buf[:])
                     sel = view.sel()
                     r = sel[0]
                     for s in list(sel)[1:]:

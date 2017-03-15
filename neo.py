@@ -298,6 +298,9 @@ class Vim:
         self.views.pop(buf.number, None)
         self.cmd('bw! {:d}'.format(buf.number))
 
+    def buf_tick(self, buf):
+        return self.eval('getbufvar({}, "changedtick")'.format(buf.number))
+
     # neovim 'readiness' methods
     # if you don't use check/force_ready and control your input/cmd interleaving, you'll hang all the time
     def check_ready(self):
