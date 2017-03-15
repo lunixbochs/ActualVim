@@ -193,17 +193,22 @@ class Vim:
         if not isinstance(args, list):
             print('ActualVim: ignoring non-list ({}) args: {}'.format(type(args), repr(args)))
             args = []
-        self.nv = neovim.attach('child', argv=[NEOVIM_PATH, '--embed'] + args)
+        self.nv = neovim.attach('child', argv=[NEOVIM_PATH, '--embed', '-n'] + args)
         self._sem = threading.Semaphore(0)
         self._thread = t = threading.Thread(target=self._event_loop)
         t.daemon = True
         t.start()
 
         self._sem.acquire()
-        self.cmd('set noswapfile')
         self.nv.options['hidden'] = True
         options = {'popupmenu_external': True}
         self.nv.ui_attach(self.width, self.height, options)
+
+        # set up buffer saving commands
+        # self.cmd('autocmd BufWritePre * :call rpcrequest({}, "pre_save")'.format(repr(self.nv.channel_id)))
+        cmd = 'autocmd {{}} * :call rpcrequest({}, "{{}}", expand("<abuf>"), expand("<afile>"))'.format(self.nv.channel_id)
+        self.cmd(cmd.format('BufReadCmd', 'read'))
+        self.cmd(cmd.format('BufWriteCmd', 'write'))
 
         try:
             self.nv.request('nvim_get_mode')
@@ -227,7 +232,14 @@ class Vim:
                 vim.notif_cb(method, updates)
 
         def on_request(method, args):
-            raise NotImplemented
+            # TODO: args are buffer id and filename
+            # make sure they match...
+            if method == 'write':
+                if self.av:
+                    self.av.on_write()
+            elif method == 'read':
+                pass # TODO: pivot view?
+            return ''
 
         def on_setup():
             self._sem.release()
@@ -253,7 +265,9 @@ class Vim:
     # buffer methods
     def buf_new(self):
         self.cmd('enew')
-        return max((b.number, b) for b in self.nv.buffers)[1]
+        buf = max((b.number, b) for b in self.nv.buffers)[1]
+        buf.options['buftype'] = 'acwrite'
+        return buf
 
     def buf_close(self, buf):
         self.cmd('bw! {:d}'.format(buf.number))
@@ -323,22 +337,19 @@ class Vim:
         return ret, ready
 
     @property
-    def sel(self):
+    def status(self):
         # TODO: use nvim_atomic? we need to get sel, buf, mode, everything at once if possible
-        ev = '&expandtab, &ts, line("."), col("."), line("v"), col("v")'
+        ev = '&modified, &expandtab, &ts, line("."), col("."), line("v"), col("v"), mode()'
 
-        # we always need the mode to calculate selection anyway
-        if self.mode_dirty:
-            ev += ', mode()'
         data = self.eval('[' + ev + ']')
 
-        if self.mode_dirty:
-            self.mode_dirty = False
-            self.mode_last = data.pop()
+        # we always need the mode to calculate selection anyway
+        self.mode_dirty = False
+        self.mode_last = data.pop()
 
         # TODO: update these like mode_dirty but with a better @cached_property type
-        expandtab, ts, r1, c1, r2, c2 = data
-        return expandtab, ts, (r2 - 1, c2 - 1), (r1 - 1, c1 - 1)
+        modified, expandtab, ts, r1, c1, r2, c2 = data
+        return modified, expandtab, ts, (r2 - 1, c2 - 1), (r1 - 1, c1 - 1)
 
     def setpos(self, expr, line, col):
         return self.eval('setpos("{}", [0, {:d}, {:d}])'.format(expr, line, col))

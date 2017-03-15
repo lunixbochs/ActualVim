@@ -243,6 +243,9 @@ class ActualVim:
             self.sync_to_vim()
             # re-enable undo
             self.buf.options['undolevels'] = -123456
+            path = self.view.file_name()
+            if path:
+                self.set_path(path)
 
         if neo.vim.activate(self):
             self.status_from_vim()
@@ -378,7 +381,7 @@ class ActualVim:
         if not neo._loaded: return
         if not self.actual: return
 
-        et, ts, a, b = neo.vim.sel
+        modified, et, ts, a, b = neo.vim.status
         if settings.get('indent_priority') == 'vim':
             self.settings_from_vim(et, ts)
         new_sel = self.visual(neo.vim.mode, a, b)
@@ -513,6 +516,9 @@ class ActualVim:
             if self.popup:
                 self.popup['selected'] = args[0][0]
             render(update=True)
+
+    def on_write(self):
+        self.view.run_command('save')
 
 
 class ActualPanel:

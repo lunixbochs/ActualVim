@@ -79,9 +79,6 @@ class ActualViewListener(sublime_plugin.ViewEventListener):
     def on_modified(self):
         self.v.sync_to_vim()
 
-    def on_post_save_async(self):
-        self.v.set_path(view.file_name())
-
 
 class ActualGlobalListener(sublime_plugin.EventListener):
     def on_new(self, view):
@@ -93,6 +90,12 @@ class ActualGlobalListener(sublime_plugin.EventListener):
         v = ActualVim.get(view, create=False)
         if v:
             v.close()
+
+    def on_post_save_async(self, view):
+        v = ActualVim.get(view, create=False)
+        if v:
+            v.set_path(view.file_name())
+            v.buf.options['modified'] = view.is_dirty()
 
     # block sublime -> vim copies during text commands
     # to prevent inconsistent updates
