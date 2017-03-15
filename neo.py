@@ -71,29 +71,20 @@ def plugin_loaded():
     print('ActualVim: using nvim binary path:', NEOVIM_PATH)
 
     global vim, _loaded
-    if 'vim' in globals():
-        new = Vim(vim.nv)
-        # anything set in _setup needs to be copied over
-        new.notif_cb = vim.notif_cb
-        new.screen = vim.screen
-        new.nvim_mode = vim.nvim_mode
-        new.views = vim.views
-        vim = new
-    else:
-        try:
-            vim = Vim()
-            vim._setup()
+    try:
+        vim = Vim()
+        vim._setup()
 
-            _loaded = True
-            from .view import neovim_loaded
-            neovim_loaded()
-            print('ActualVim: nvim started')
-        except Exception:
-            print('ActualVim: Error during nvim setup.')
-            traceback.print_exc()
-            _loaded = False
-            vim = None
-            del vim
+        _loaded = True
+        from .view import neovim_loaded
+        neovim_loaded()
+        print('ActualVim: nvim started')
+    except Exception:
+        print('ActualVim: Error during nvim setup.')
+        traceback.print_exc()
+        _loaded = False
+        vim = None
+        del vim
 
 def plugin_unloaded():
     from .view import neovim_unloaded
@@ -239,20 +230,20 @@ class Vim:
             self.nvim_mode = False
 
     def _event_loop(self):
-        def on_notification(method, args):
+        def on_notification(method, data):
             # if vim exits, we might get a notification on the way out
             if not vim:
                 return
 
             if method == 'redraw':
-                for cmd in args:
+                for cmd in data:
                     name, args = cmd[0], cmd[1:]
                     # TODO: allow subscribing to these
                     if name == 'bell' and self.av:
                         self.av.on_bell()
                     elif name in ('popupmenu_show', 'popupmenu_hide', 'popupmenu_select'):
                         self.av.on_popupmenu(name, args)
-                vim.screen.redraw(args)
+                vim.screen.redraw(data)
             if vim.notif_cb:
                 vim.notif_cb(method, args)
 
