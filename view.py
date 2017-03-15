@@ -128,14 +128,15 @@ class ActualVim:
 
     def vim_text_point(self, row, col):
         view = self.view
-        line = view.substr(view.line(view.text_point(row, 0)))
+        pos = view.text_point(row, 0)
+        line = view.substr(sublime.Region(pos, pos + col))
         vcol = len(line.encode('utf-8')[:col].decode('utf-8'))
         return view.text_point(row, vcol)
 
     def vim_rowcol(self, point):
         view = self.view
         row, col = view.rowcol(point)
-        line = view.substr(view.line(point))
+        line = view.substr(sublime.Region(point - col, point))
         vcol = len(line[:col].encode('utf-8'))
         return row, vcol
 
