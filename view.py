@@ -320,7 +320,7 @@ class ActualVim:
                     view.replace(edit, sublime.Region(0, r.begin()), text[:r.begin()])
 
                 self.mark_changed()
-                self.sel_from_vim()
+                self.sel_from_vim(edit=edit)
                 self.status_from_vim()
 
         if edit:
@@ -425,7 +425,7 @@ class ActualVim:
         else:
             self.view.erase_status('actual')
 
-    def press(self, key):
+    def press(self, key, edit=None):
         if not neo._loaded: return
         if self.buf is None:
             return
@@ -439,7 +439,7 @@ class ActualVim:
                 # TODO: trigger UI update on vim event, not here?
                 # well, if we don't figure it out before returning control
                 # to sublime, we get more events from sublime to figure out if we need to ignore
-                self.sync_from_vim()
+                self.sync_from_vim(edit=edit)
                 # (trigger this somewhere else? vim mode change callback?)
                 self.update_view()
             return ready

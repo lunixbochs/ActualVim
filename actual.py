@@ -46,7 +46,7 @@ class ActualKeypress(sublime_plugin.TextCommand):
             if key is not None:
                 if key == '<':
                     key = '<lt>'
-                v.press(key)
+                v.press(key, edit=edit)
 
 
 class ActualViewListener(sublime_plugin.ViewEventListener):
