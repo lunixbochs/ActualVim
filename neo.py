@@ -14,6 +14,7 @@ from . import settings
 if not '_loaded' in globals():
     NEOVIM_PATH = None
     _loaded = False
+    _loading = False
 
 INSERT_MODES = ['i', 'R']
 VISUAL_MODES = ['V', 'v', '\x16']
@@ -70,19 +71,22 @@ def plugin_loaded():
         raise Exception('cannot find nvim executable')
     print('ActualVim: using nvim binary path:', NEOVIM_PATH)
 
-    global vim, _loaded
+    global vim, _loaded, _loading
     try:
         vim = Vim()
+        _loading = True
         vim._setup()
 
-        _loaded = True
         from .view import neovim_loaded
         neovim_loaded()
         print('ActualVim: nvim started')
+        _loaded = True
+        _loading = False
     except Exception:
         print('ActualVim: Error during nvim setup.')
         traceback.print_exc()
         _loaded = False
+        _loading = False
         vim = None
         del vim
 
@@ -198,18 +202,35 @@ class Vim:
         if not isinstance(args, list):
             print('ActualVim: ignoring non-list ({}) args: {}'.format(type(args), repr(args)))
             args = []
-        self.nv = neovim.attach('child', argv=[NEOVIM_PATH, '--embed', '-n'] + args)
+        self.nv = neovim.attach('child', argv=[NEOVIM_PATH, '--embed', '-n', '-u', os.devnull] + args)
         self._sem = threading.Semaphore(0)
         self._thread = t = threading.Thread(target=self._event_loop)
         t.daemon = True
         t.start()
 
         self._sem.acquire()
-        self.nv.options['hidden'] = True
 
-        # set up UI
-        options = {'popupmenu_external': True}
+        # set up UI (before anything else so we can see errors)
+        options = {'popupmenu_external': True, 'rgb': True}
         self.nv.ui_attach(self.width, self.height, options)
+
+        # load vimrc late so we can see the resulting errors
+        vimrc_path = settings.get('vimrc_path', None)
+        if not vimrc_path:
+            if sys.platform == 'win32':
+                config = os.getenv('LOCALAPPDATA')
+            else:
+                config = os.getenv('XDG_CONFIG_HOME') or os.path.expanduser('~/.config')
+            vimrc_path = os.path.join(config, 'nvim', 'init.vim')
+
+        if os.path.isfile(vimrc_path):
+            try:
+                self.cmd('source {}'.format(vimrc_path))
+            except Exception as e:
+                print('ActualVim: error sourcing vimrc "{}":\n    {}'.format(vimrc_path, e))
+
+        # hidden buffers allow us to multiplex them
+        self.nv.options['hidden'] = True
 
         # set up buffer read/write commands
         cmd = 'autocmd {{}} * :call rpcrequest({}, "{{}}", expand("<abuf>"), expand("<afile>"))'.format(self.nv.channel_id)
@@ -232,7 +253,7 @@ class Vim:
     def _event_loop(self):
         def on_notification(method, data):
             # if vim exits, we might get a notification on the way out
-            if not vim:
+            if not (_loaded or _loading):
                 return
 
             if method == 'redraw':
