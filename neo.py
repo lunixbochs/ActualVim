@@ -304,7 +304,7 @@ class Vim:
         self.cmd('bw! {:d}'.format(buf.number))
 
     def buf_tick(self, buf):
-        return self.eval('getbufvar({}, "changedtick")'.format(buf.number))
+        return int(self.eval('getbufvar({}, "changedtick")'.format(buf.number)))
 
     # neovim 'readiness' methods
     # if you don't use check/force_ready and control your input/cmd interleaving, you'll hang all the time
