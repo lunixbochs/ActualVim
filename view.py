@@ -563,31 +563,4 @@ class ActualVim:
 
         return completions
 
-class ActualPanel:
-    def __init__(self, actual):
-        self.actual = actual
-        self.vim = actual.vim
-        self.view = actual.view
-        self.panel = None
-
-    def close(self):
-        if self.panel:
-            self.panel.close()
-
-    def show(self, char):
-        window = self.view.window()
-        self.panel = window.show_input_panel('Vim', char, self.on_done, None, self.on_cancel)
-        s = self.panel.settings()
-        s.set('actual_intercept', True)
-        s.set('actual_proxy', self.view.id())
-        ActualVim.views[self.panel.id()] = self.actual
-
-    def on_done(self, text):
-        self.vim.press('enter')
-        self.vim.panel = None
-
-    def on_cancel(self):
-        self.vim.press('escape')
-        self.vim.panel = None
-
 ActualVim.reload_classes()
