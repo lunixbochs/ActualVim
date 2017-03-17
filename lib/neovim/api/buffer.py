@@ -31,9 +31,11 @@ class Buffer(Remote):
         return self.request('buffer_line_count')
 
     def _get_lines(self, start, end, strict):
-        return self.request_raw('nvim_buf_get_lines', start, end, strict)
+        lines = self.request_raw('nvim_buf_get_lines', start, end, strict)
+        return [line.decode('utf8') for line in lines]
 
     def _set_lines(self, start, end, strict, lines):
+        lines = [line.encode('utf8') for line in lines]
         return self.request_raw('nvim_buf_set_lines', start, end, strict, lines)
 
     def __getitem__(self, idx):

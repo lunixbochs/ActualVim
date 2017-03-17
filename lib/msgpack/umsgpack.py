@@ -67,12 +67,12 @@ class Ext:
     an application-defined type and data byte array.
     """
 
-    def __init__(self, type, data):
+    def __init__(self, code, data):
         """
         Construct a new Ext object.
 
         Args:
-            type: application-defined type integer from 0 to 127
+            code: application-defined type integer from 0 to 127
             data: application-defined data byte array
 
         Raises:
@@ -88,15 +88,15 @@ class Ext:
         Ext Object (Type: 0x05, Data: 01 02 03)
         >>>
         """
-        # Application ext type should be 0 <= type <= 127
-        if not isinstance(type, int) or not (type >= 0 and type <= 127):
-            raise TypeError("ext type out of range")
-        # Check data is type bytes
+        # Application ext code should be 0 <= code <= 127
+        if not isinstance(code, int) or not (code >= 0 and code <= 127):
+            raise TypeError("ext code out of range")
+        # Check data is code bytes
         elif sys.version_info[0] == 3 and not isinstance(data, bytes):
-            raise TypeError("ext data is not type \'bytes\'")
+            raise TypeError("ext data is not code \'bytes\'")
         elif sys.version_info[0] == 2 and not isinstance(data, str):
-            raise TypeError("ext data is not type \'str\'")
-        self.type = type
+            raise TypeError("ext data is not code \'str\'")
+        self.code = code
         self.data = data
 
     def __eq__(self, other):
@@ -104,7 +104,7 @@ class Ext:
         Compare this Ext object with another for equality.
         """
         return (isinstance(other, self.__class__) and
-                self.type == other.type and
+                self.code == other.code and
                 self.data == other.data)
 
     def __ne__(self, other):
@@ -117,7 +117,7 @@ class Ext:
         """
         String representation of this Ext object.
         """
-        s = "Ext Object (Type: 0x%02x, Data: " % self.type
+        s = "Ext Object (Type: 0x%02x, Data: " % self.code
         s += " ".join(["0x%02x" % ord(self.data[i:i+1]) for i in xrange(min(len(self.data), 8))])
         if len(self.data) > 8:
             s += " ..."
@@ -286,21 +286,21 @@ def _pack_oldspec_raw(obj, fp, options):
 
 def _pack_ext(obj, fp, options):
     if len(obj.data) == 1:
-        fp.write(b"\xd4" + struct.pack("B", obj.type & 0xff) + obj.data)
+        fp.write(b"\xd4" + struct.pack("B", obj.code & 0xff) + obj.data)
     elif len(obj.data) == 2:
-        fp.write(b"\xd5" + struct.pack("B", obj.type & 0xff) + obj.data)
+        fp.write(b"\xd5" + struct.pack("B", obj.code & 0xff) + obj.data)
     elif len(obj.data) == 4:
-        fp.write(b"\xd6" + struct.pack("B", obj.type & 0xff) + obj.data)
+        fp.write(b"\xd6" + struct.pack("B", obj.code & 0xff) + obj.data)
     elif len(obj.data) == 8:
-        fp.write(b"\xd7" + struct.pack("B", obj.type & 0xff) + obj.data)
+        fp.write(b"\xd7" + struct.pack("B", obj.code & 0xff) + obj.data)
     elif len(obj.data) == 16:
-        fp.write(b"\xd8" + struct.pack("B", obj.type & 0xff) + obj.data)
+        fp.write(b"\xd8" + struct.pack("B", obj.code & 0xff) + obj.data)
     elif len(obj.data) <= 2**8-1:
-        fp.write(b"\xc7" + struct.pack("BB", len(obj.data), obj.type & 0xff) + obj.data)
+        fp.write(b"\xc7" + struct.pack("BB", len(obj.data), obj.code & 0xff) + obj.data)
     elif len(obj.data) <= 2**16-1:
-        fp.write(b"\xc8" + struct.pack(">HB", len(obj.data), obj.type & 0xff) + obj.data)
+        fp.write(b"\xc8" + struct.pack(">HB", len(obj.data), obj.code & 0xff) + obj.data)
     elif len(obj.data) <= 2**32-1:
-        fp.write(b"\xc9" + struct.pack(">IB", len(obj.data), obj.type & 0xff) + obj.data)
+        fp.write(b"\xc9" + struct.pack(">IB", len(obj.data), obj.code & 0xff) + obj.data)
     else:
         raise UnsupportedTypeException("huge ext data")
 
@@ -601,7 +601,7 @@ def _unpack_string(code, fp, options):
     # if compatibility:
     #     return _read_except(fp, length)
 
-    return fp.read(length).decode('utf-8')
+    return fp.read(length)
     # try:
     #   return bytes.decode(data, 'utf-8')
     # except UnicodeDecodeError:
@@ -645,8 +645,8 @@ def _unpack_ext(code, fp, options):
 
     # Unpack with ext handler, if we have one
     ext_handlers = options.get("ext_handlers")
-    if ext_handlers and ext.type in ext_handlers:
-        ext = ext_handlers[ext.type](ext)
+    if ext_handlers and ext.code in ext_handlers:
+        ext = ext_handlers[ext.code](ext)
 
     return ext
 

@@ -1,7 +1,7 @@
 """Code shared between the API classes."""
 import functools
 
-from actualvim.lib import umsgpack
+from actualvim.lib import msgpack
 
 from ..compat import unicode_errors_default
 
@@ -23,7 +23,7 @@ class Remote(object):
         """
         self._session = session
         self.code_data = code_data
-        self.handle = umsgpack.unpackb(code_data[1])
+        self.handle = msgpack.unpackb(code_data[1])
         self.api = RemoteApi(self, self._api_prefix)
         self.vars = RemoteMap(self, self._api_prefix + 'get_var',
                               self._api_prefix + 'set_var')

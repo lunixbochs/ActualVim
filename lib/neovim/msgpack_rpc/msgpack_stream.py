@@ -1,29 +1,8 @@
 """Msgpack handling in the event loop pipeline."""
-from actualvim.lib import umsgpack
+from actualvim.lib import msgpack
 import io
 
 from ..compat import unicode_errors_default
-
-class Unpacker:
-    def __init__(self):
-        self.buf = io.BytesIO()
-
-    def feed(self, data):
-        # TODO: does this need to be thread safe?
-        pos = self.buf.tell()
-        self.buf.seek(0, io.SEEK_END)
-        self.buf.write(data)
-        self.buf.seek(pos)
-
-    def __iter__(self):
-        while True:
-            try:
-                pos = self.buf.tell()
-                yield umsgpack.unpack(self.buf)
-            except umsgpack.InsufficientDataException:
-                self.buf.seek(pos)
-                self.buf = io.BytesIO(self.buf.read())
-                raise StopIteration
 
 
 class MsgpackStream(object):
@@ -37,7 +16,7 @@ class MsgpackStream(object):
     def __init__(self, event_loop):
         """Wrap `event_loop` on a msgpack-aware interface."""
         self._event_loop = event_loop
-        self._unpacker = Unpacker()
+        self._unpacker = msgpack.Unpacker()
         self._message_cb = None
 
     def threadsafe_call(self, fn):
@@ -46,7 +25,7 @@ class MsgpackStream(object):
 
     def send(self, msg):
         """Queue `msg` for sending to Nvim."""
-        self._event_loop.send(umsgpack.packb(msg))
+        self._event_loop.send(msgpack.packb(msg))
 
     def run(self, message_cb):
         """Run the event loop to receive messages from Nvim.
