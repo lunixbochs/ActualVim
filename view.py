@@ -46,6 +46,9 @@ class ActualVim:
         self.buf = None
         self.sub_changes = None
         self.vim_changes = None
+        self.screen_changes = 0
+        self.last_highlights = None
+        self.last_status = None
         self.last_size = None
         self.block = False
         self.block_hit = False
@@ -260,6 +263,7 @@ class ActualVim:
         if neo.vim.activate(self):
             self.status_from_vim()
             self.update_view()
+            self.highlight()
 
     def update_view(self):
         combined = self.avsettings.get('settings', {})
@@ -292,6 +296,7 @@ class ActualVim:
                 neo.vim.cmd('set noma')
             else:
                 neo.vim.cmd('set ma')
+        neo.vim.status(force=True)
 
     def settings_from_vim(self, et, ts):
         if et:
@@ -399,10 +404,13 @@ class ActualVim:
         if not neo._loaded: return
         if not self.actual: return
 
-        modified, et, ts, a, b = neo.vim.status
+        status = neo.vim.status()
+        a = (status['vline'], status['vcol'])
+        b = (status['cline'], status['ccol'])
+
         if settings.get('indent_priority') == 'vim':
-            self.settings_from_vim(et, ts)
-        new_sel = self.visual(neo.vim.mode, a, b)
+            self.settings_from_vim(status['expandtab'], status['ts'])
+        new_sel = self.visual(status['mode'], a, b)
 
         def select(view, edit):
             sel = view.sel()
@@ -543,7 +551,7 @@ class ActualVim:
 
     def on_complete(self, findstart, base):
         def cur():
-            modified, et, ts, a, b = neo.vim.status
+            modified, et, ts, a, b = neo.vim.status()
             sel = self.visual(neo.vim.mode, a, b)
             return sel[0].b
 
@@ -562,5 +570,64 @@ class ActualVim:
             pass
 
         return completions
+
+    def highlight(self, highlights=None):
+        if not settings.get('highlights'):
+            return
+
+        highlights = highlights or self.last_highlights
+        if not highlights:
+            return
+
+        # TODO: autocmd VimResized?
+        # TODO: split views?
+        # TODO: allow configuring scope ("colormap")
+        status = neo.vim.status(False)
+        if not status:
+            return
+
+        def filt(h):
+            whitelist = {'background', 'underline', 'reverse'}
+            return all((
+                set(h.highlight.keys()).intersection(whitelist),
+                h.line < status['wheight'],
+            ))
+        highlights = tuple(filter(filt, highlights))
+
+        wview = status['wview']
+        lineoff = wview['topline'] - wview['topfill'] - 1
+        coloff = wview['leftcol'] - wview['skipcol']
+        if highlights == self.last_highlights:
+            return
+        self.last_highlights = highlights
+
+        regions = []
+        lines = {
+            (line + lineoff): self.buf[line + lineoff]
+            for line in {hl.line for hl in highlights}
+        }
+        for hl in highlights:
+            line = hl.line + lineoff
+            start = hl.start + coloff
+            end = hl.end + coloff
+            # fix tabs
+            if not status['expandtab']:
+                fix = lambda pos: pos - lines[line][:pos].count('\t') * (status['ts'] - 1)
+                start, end = fix(start), fix(end)
+            a = self.view.text_point(line, start)
+            b = self.view.text_point(line, end)
+            regions.append(sublime.Region(a, b))
+
+        if regions:
+            self.view.add_regions('actualvim_highlight', regions, 'error', '', sublime.DRAW_NO_OUTLINE)
+        else:
+            self.view.erase_regions('actualvim_highlight')
+
+    def on_redraw(self, data, screen):
+        if screen.changes <= self.screen_changes:
+            return
+        self.screen_changes = screen.changes
+        hl = screen.highlights()
+        sublime.set_timeout(lambda: self.highlight(hl), 0)
 
 ActualVim.reload_classes()

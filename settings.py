@@ -9,6 +9,7 @@ DEFAULT_SETTINGS = {
     "neovim_path": "",
     "neovim_args": ["--cmd", "let g:actualvim = 1"],
     "indent_priority": "sublime",
+    "highlights": True,
     "settings": {
         "sublime": {
             "inverse_caret_state": False,
@@ -22,7 +23,9 @@ DEFAULT_SETTINGS = {
             "modes": {
                 "all insert": {},
                 "all visual": {},
-                "command": {},
+                "command": {
+                    "inverse_caret_state": True,
+                },
                 "insert": {},
                 "normal": {
                     "inverse_caret_state": True,
