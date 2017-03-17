@@ -73,6 +73,7 @@ def plugin_loaded():
 
     global vim, _loaded, _loading
     try:
+        start = time.time()
         vim = Vim()
         _loading = True
         vim._setup()
@@ -81,7 +82,7 @@ def plugin_loaded():
         _loading = False
         from .view import neovim_loaded
         neovim_loaded()
-        print('ActualVim: nvim started')
+        print('ActualVim: nvim started in {:.2f}ms'.format((time.time() - start) * 1000))
     except Exception:
         print('ActualVim: Error during nvim setup.')
         traceback.print_exc()
