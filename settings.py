@@ -6,7 +6,6 @@ DEFAULT_SETTINGS = {
         "completefunc": "ActualVimComplete",
     },
     "enabled": True,
-    "vimrc_path": "",
     "neovim_path": "",
     "neovim_args": ["--cmd", "let g:actualvim = 1"],
     "indent_priority": "sublime",

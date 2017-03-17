@@ -203,7 +203,18 @@ class Vim:
         if not isinstance(args, list):
             print('ActualVim: ignoring non-list ({}) args: {}'.format(type(args), repr(args)))
             args = []
-        self.nv = neovim.attach('child', argv=[NEOVIM_PATH, '--embed', '-n', '-u', 'NORC'] + args)
+        self.nv = neovim.attach('child', argv=[NEOVIM_PATH, '--embed', '-n'] + args)
+
+        # toss in <FocusGained> in case there's a blocking prompt on startup (like vimrc errors)
+        self.nv.input('<FocusGained>')
+        messages = self.nv.eval('execute("messages")').strip()
+        if messages:
+            print('ActualVim: nvim startup error:')
+            print('-'*20)
+            print(messages)
+            print('-'*20)
+            sublime.active_window().run_command('show_panel', {'panel': 'console'})
+
         self._sem = threading.Semaphore(0)
         self._thread = t = threading.Thread(target=self._event_loop)
         t.daemon = True
@@ -214,21 +225,6 @@ class Vim:
         # set up UI (before anything else so we can see errors)
         options = {'popupmenu_external': True, 'rgb': True}
         self.nv.ui_attach(self.width, self.height, options)
-
-        # load vimrc late so we can see the resulting errors
-        vimrc_path = settings.get('vimrc_path', None)
-        if not vimrc_path:
-            if sys.platform == 'win32':
-                config = os.getenv('LOCALAPPDATA')
-            else:
-                config = os.getenv('XDG_CONFIG_HOME') or os.path.expanduser('~/.config')
-            vimrc_path = os.path.join(config, 'nvim', 'init.vim')
-
-        if os.path.isfile(vimrc_path):
-            try:
-                self.cmd('source {}'.format(vimrc_path))
-            except Exception as e:
-                print('ActualVim: error sourcing vimrc "{}":\n    {}'.format(vimrc_path, e))
 
         # hidden buffers allow us to multiplex them
         self.nv.options['hidden'] = True
