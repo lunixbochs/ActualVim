@@ -274,11 +274,10 @@ class ActualVim:
         width, height = vp[0] / self.view.em_width(), vp[1] / self.view.line_height()
         if self.actual:
             neo.vim.resize(width, height)
-
-        # update_view is called all the time, and asking vim for things is expensive
-        # so vim's tab priority comes automatically during sel_from_vim()
-        if settings.get('indent_priority') == 'sublime':
-            self.settings_to_vim()
+            # update_view is called all the time, and asking vim for things is expensive
+            # so vim's tab priority comes automatically during sel_from_vim()
+            if settings.get('indent_priority') == 'sublime':
+                self.settings_to_vim()
 
     def settings_to_vim(self):
         # only send this to vim if something changes
