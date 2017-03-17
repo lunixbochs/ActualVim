@@ -203,7 +203,7 @@ class Vim:
         if not isinstance(args, list):
             print('ActualVim: ignoring non-list ({}) args: {}'.format(type(args), repr(args)))
             args = []
-        self.nv = neovim.attach('child', argv=[NEOVIM_PATH, '--embed', '-n', '-u', os.devnull] + args)
+        self.nv = neovim.attach('child', argv=[NEOVIM_PATH, '--embed', '-n', '-u', 'NORC'] + args)
         self._sem = threading.Semaphore(0)
         self._thread = t = threading.Thread(target=self._event_loop)
         t.daemon = True
