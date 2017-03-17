@@ -77,11 +77,11 @@ def plugin_loaded():
         _loading = True
         vim._setup()
 
+        _loaded = True
+        _loading = False
         from .view import neovim_loaded
         neovim_loaded()
         print('ActualVim: nvim started')
-        _loaded = True
-        _loading = False
     except Exception:
         print('ActualVim: Error during nvim setup.')
         traceback.print_exc()
