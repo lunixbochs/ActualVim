@@ -399,10 +399,13 @@ class ActualVim:
         if not neo._loaded: return
         if not self.actual: return
 
-        modified, et, ts, a, b = neo.vim.status
+        status = neo.vim.status
+        a = (status['vline'], status['vcol'])
+        b = (status['cline'], status['ccol'])
+
         if settings.get('indent_priority') == 'vim':
-            self.settings_from_vim(et, ts)
-        new_sel = self.visual(neo.vim.mode, a, b)
+            self.settings_from_vim(status['expandtab'], status['ts'])
+        new_sel = self.visual(status['mode'], a, b)
 
         def select(view, edit):
             sel = view.sel()
@@ -562,5 +565,31 @@ class ActualVim:
             pass
 
         return completions
+
+    def on_redraw(self, data, screen):
+        status = neo.vim.status_last
+        if not status:
+            return
+
+        # TODO: autocmd VimResized?
+        # TODO: split views?
+        # TODO: tabs cause alignment issues
+        # TODO: random huge flashes of highlight
+        # TODO: allow configuring scope
+        wview = status['wview']
+        regions = []
+        for hl in screen.highlights():
+            if hl.line >= status['wheight']:
+                continue
+            line = hl.line + wview['topline'] - wview['topfill']
+            start = hl.start + wview['leftcol'] - wview['skipcol']
+            a = self.vim_text_point(line - 1, start)
+            b = self.vim_text_point(line - 1, hl.end)
+            regions.append(sublime.Region(a, b))
+
+        if regions:
+            self.view.add_regions('actualvim_highlight', regions, 'error', '', sublime.DRAW_NO_OUTLINE)
+        else:
+            self.view.erase_regions('actualvim_highlight')
 
 ActualVim.reload_classes()

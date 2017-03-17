@@ -22,7 +22,9 @@ DEFAULT_SETTINGS = {
             "modes": {
                 "all insert": {},
                 "all visual": {},
-                "command": {},
+                "command": {
+                    "inverse_caret_state": True,
+                },
                 "insert": {},
                 "normal": {
                     "inverse_caret_state": True,

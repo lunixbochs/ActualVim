@@ -10,6 +10,7 @@ import traceback
 from .lib import neovim
 from .lib import util
 from . import settings
+from .screen import Screen
 
 if not '_loaded' in globals():
     NEOVIM_PATH = None
@@ -102,100 +103,19 @@ def plugin_unloaded():
         _loaded = False
 
 
-class Screen:
-    def __init__(self):
-        self.x = 0
-        self.y = 0
-        self.resize(1, 1)
-
-    def resize(self, w, h):
-        self.w = w
-        self.h = h
-        # TODO: should resize clear?
-        self.screen = [[' '] * w for i in range(h)]
-        self.scroll_region = [0, self.h, 0, self.w]
-
-    def clear(self):
-        self.resize(self.w, self.h)
-
-    def scroll(self, dy):
-        ya, yb = self.scroll_region[0:2]
-        xa, xb = self.scroll_region[2:4]
-        yi = (ya, yb)
-        if dy < 0:
-            yi = (yb, ya - 1)
-
-        for y in range(yi[0], yi[1], int(dy / abs(dy))):
-            if ya <= y + dy < yb:
-                self.screen[y][xa:xb] = self.screen[y + dy][xa:xb]
-            else:
-                self.screen[y][xa:xb] = [' '] * (xb - xa)
-
-    def redraw(self, updates):
-        blacklist = [
-            'mode_change',
-            'bell', 'mouse_on', 'highlight_set',
-            'update_fb', 'update_bg', 'update_sp', 'clear',
-        ]
-        for cmd in updates:
-            if not cmd:
-                continue
-            name, args = cmd[0], cmd[1:]
-            if name == 'cursor_goto':
-                self.y, self.x = args[0]
-            elif name == 'eol_clear':
-                self.screen[self.y][self.x:] = [' '] * (self.w - self.x)
-            elif name == 'put':
-                for cs in args:
-                    for c in cs:
-                        self[self.x, self.y] = c
-                        self.x += 1
-            elif name == 'resize':
-                self.resize(*args[0])
-            elif name in blacklist:
-                pass
-            elif name == 'set_scroll_region':
-                self.scroll_region = args[0]
-            elif name == 'scroll':
-                self.scroll(args[0][0])
-            # else:
-            #     print('unknown update cmd', name)
-        # if updates:
-        #     print(updates)
-        #     self.p()
-
-    def p(self):
-        print('-' * self.w)
-        print(str(self))
-        print('-' * self.w)
-
-    def __setitem__(self, xy, c):
-        x, y = xy
-        try:
-            self.screen[y][x] = c
-        except IndexError:
-            pass
-
-    def __getitem__(self, y):
-        return ''.join(self.screen[y])
-
-    def __str__(self):
-        return '\n'.join([self[y] for y in range(self.h)])
-
-
 class Vim:
     def __init__(self, nv=None):
         self.nv = nv
         self.ready = threading.Lock()
 
-        self.mode_last = None
-        self.mode_dirty = True
+        self.status_last = {}
+        self.status_dirty = True
+
         self.av = None
         self.width = 80
         self.height = 24
 
     def _setup(self):
-        self.notif_cb = None
         self.screen = Screen()
         self.views = {}
 
@@ -262,8 +182,8 @@ class Vim:
                     elif name in ('popupmenu_show', 'popupmenu_hide', 'popupmenu_select'):
                         self.av.on_popupmenu(name, args)
                 vim.screen.redraw(data)
-            if vim.notif_cb:
-                vim.notif_cb(method, args)
+                if self.av:
+                    self.av.on_redraw(data, vim.screen)
 
         def on_request(method, args):
             # TODO: what if I need to handle requests that don't start with bufid?
@@ -369,13 +289,14 @@ class Vim:
         return state['ret']
 
     def press(self, key):
-        self.mode_dirty = True
+        self.status_dirty = True
+        mode_last = self.status_last.get('mode')
         was_ready = self.ready.acquire(False)
 
         ret = self.nv.input(key)
-        if key in HALF_KEYS and was_ready and self.mode_last == 'n':
+        if key in HALF_KEYS and was_ready and mode_last == 'n':
             ready = False
-        elif self.mode_last in INSERT_MODES and key in SIMPLE_KEYS:
+        elif mode_last in INSERT_MODES and key in SIMPLE_KEYS:
             # TODO: this is an assumption and could break in custom setups
             ready = True
         else:
@@ -391,17 +312,28 @@ class Vim:
     @property
     def status(self):
         # TODO: use nvim_atomic? we need to get sel, buf, mode, everything at once if possible
-        ev = '&modified, &expandtab, &ts, line("."), col("."), line("v"), col("v"), mode()'
+        if self.status_dirty:
+            items = {
+                'mode': 'mode()',
+                'modified': '&modified',
+                'expandtab': '&expandtab',
+                'ts': '&ts',
 
-        data = self.eval('[' + ev + ']')
+                'cline': 'line(".") - 1',
+                'ccol': 'col(".") - 1',
+                'vline': 'line("v") - 1',
+                'vcol': 'col("v") - 1',
 
-        # we always need the mode to calculate selection anyway
-        self.mode_dirty = False
-        self.mode_last = data.pop()
+                'wview': 'winsaveview()',
+                'wwidth': 'winwidth(winnr())',
+                'wheight': 'winheight(winnr())',
 
-        # TODO: update these like mode_dirty but with a better @cached_property type
-        modified, expandtab, ts, r1, c1, r2, c2 = data
-        return modified, expandtab, ts, (r2 - 1, c2 - 1), (r1 - 1, c1 - 1)
+                'screenrow': 'screenrow()',
+                'screencol': 'screencol()',
+            }
+            expr = '[' + (', '.join(items.values())) + ']'
+            self.status_last = dict(zip(items.keys(), self.eval(expr)))
+        return self.status_last
 
     def setpos(self, expr, line, col):
         return self.eval('setpos("{}", [0, {:d}, {:d}])'.format(expr, line, col))
@@ -433,9 +365,7 @@ class Vim:
 
     @property
     def mode(self):
-        if self.mode_dirty:
-            self.mode_last = self.eval('mode()')
-        return self.mode_last
+        return self.status['mode']
 
     @property
     def status_line(self):
