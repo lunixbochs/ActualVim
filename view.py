@@ -56,8 +56,8 @@ class ActualVim:
         # settings are marked here when applying mode-specific settings, and erased after
         self.tmpsettings = []
 
-        # cached indentation settings
-        self.indent = None
+        # track last settings we synced to vim, so we can update vim on change
+        self.last_settings = None
 
         # tracks our drag_select type
         self.drag_select = None
@@ -281,13 +281,17 @@ class ActualVim:
 
     def settings_to_vim(self):
         # only send this to vim if something changes
-        indent = [self.settings.get(s) for s in ('translate_tabs_to_spaces', 'tab_size')]
-        if indent != self.indent:
-            self.indent = indent
-            if indent[0]:
-                neo.vim.cmd('set expandtab ts={ts} shiftwidth={ts} softtabstop=0 smarttab'.format(ts=indent[1]))
+        tmp = {name: self.settings.get(name) for name in ('translate_tabs_to_spaces', 'tab_size')}
+        tmp['read_only'] = self.view.is_read_only()
+        if tmp != self.last_settings:
+            if tmp['translate_tabs_to_spaces']:
+                neo.vim.cmd('set expandtab ts={ts} shiftwidth={ts} softtabstop=0 smarttab'.format(ts=tmp['tab_size']))
             else:
                 neo.vim.cmd('set noexpandtab softtabstop=0')
+            if tmp['read_only']:
+                neo.vim.cmd('set noma')
+            else:
+                neo.vim.cmd('set ma')
 
     def settings_from_vim(self, et, ts):
         if et:
