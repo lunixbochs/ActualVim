@@ -349,7 +349,7 @@ class ActualVim:
     def sel_to_vim(self, force=False):
         if not neo._loaded: return
         if not self.actual: return
-        if self.sel_changed():
+        if self.sel_changed() and not self.changed:
             neo.vim.force_ready()
             # single selection for now...
             # TODO: block
