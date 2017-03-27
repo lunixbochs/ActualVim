@@ -15,7 +15,7 @@ import subprocess
 import sys
 from collections import deque
 
-from actualvim.lib import asyncio
+from ActualVim.lib import asyncio
 
 from .base import BaseEventLoop
 

@@ -1,6 +1,6 @@
 """Abstract Transport class."""
 
-from actualvim.lib.asyncio_inc import compat
+from ActualVim.lib.asyncio_inc import compat
 
 __all__ = ['BaseTransport', 'ReadTransport', 'WriteTransport',
            'Transport', 'DatagramTransport', 'SubprocessTransport',

@@ -18,7 +18,7 @@ import sys
 import threading
 import traceback
 
-from actualvim.lib.asyncio_inc import compat
+from ActualVim.lib.asyncio_inc import compat
 
 
 def _get_function_source(func):

@@ -14,7 +14,7 @@ import traceback
 import warnings
 import weakref
 
-from actualvim.lib.asyncio_inc import compat
+from ActualVim.lib.asyncio_inc import compat
 from . import coroutines
 from . import events
 from . import futures

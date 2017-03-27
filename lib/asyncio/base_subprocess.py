@@ -2,7 +2,7 @@ import collections
 import subprocess
 import warnings
 
-from actualvim.lib.asyncio_inc import compat
+from ActualVim.lib.asyncio_inc import compat
 from . import protocols
 from . import transports
 from .coroutines import coroutine

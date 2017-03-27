@@ -5,7 +5,7 @@ __all__ = ['Queue', 'PriorityQueue', 'LifoQueue', 'QueueFull', 'QueueEmpty']
 import collections
 import heapq
 
-from actualvim.lib.asyncio_inc import compat
+from ActualVim.lib.asyncio_inc import compat
 from . import events
 from . import locks
 from .coroutines import coroutine

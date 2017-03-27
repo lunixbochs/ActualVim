@@ -9,7 +9,7 @@ import sys
 import traceback
 import types
 
-from actualvim.lib.asyncio_inc import compat
+from ActualVim.lib.asyncio_inc import compat
 from . import events
 from . import futures
 from .log import logger

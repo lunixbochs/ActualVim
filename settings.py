@@ -15,7 +15,7 @@ DEFAULT_SETTINGS = {
         },
         "vim": {
             "bell": {
-                "color_scheme": "Packages/actualvim/Bell.tmTheme",
+                "color_scheme": "Packages/ActualVim/Bell.tmTheme",
                 "duration": 0.001
             },
             "inverse_caret_state": False,

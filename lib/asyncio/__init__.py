@@ -5,14 +5,14 @@ import sys
 # The selectors module is in the stdlib in Python 3.4 but not in 3.3.
 # Do this first, so the other submodules can use "from . import selectors".
 # Prefer asyncio/selectors.py over the stdlib one, as ours may be newer.
-from actualvim.lib.asyncio_inc import selectors
+from ActualVim.lib.asyncio_inc import selectors
 
 if sys.platform == 'win32':
     import platform
     if platform.architecture()[0] == '64bit':
-        from actualvim.lib.asyncio_inc.win64 import _overlapped
+        from ActualVim.lib.asyncio_inc.win64 import _overlapped
     else:
-        from actualvim.lib.asyncio_inc.win32 import _overlapped
+        from ActualVim.lib.asyncio_inc.win32 import _overlapped
 
 # This relies on each of the submodules having an __all__ variable.
 from .base_events import *

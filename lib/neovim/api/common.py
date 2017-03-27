@@ -1,7 +1,7 @@
 """Code shared between the API classes."""
 import functools
 
-from actualvim.lib import msgpack
+from ActualVim.lib import msgpack
 
 from ..compat import unicode_errors_default
 

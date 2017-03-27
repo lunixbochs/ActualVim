@@ -1,5 +1,5 @@
 """Msgpack handling in the event loop pipeline."""
-from actualvim.lib import msgpack
+from ActualVim.lib import msgpack
 import io
 
 from ..compat import unicode_errors_default

@@ -18,7 +18,7 @@ except ImportError:  # pragma: no cover
     ssl = None
 
 from . import base_events
-from actualvim.lib.asyncio_inc import compat
+from ActualVim.lib.asyncio_inc import compat
 from . import constants
 from . import events
 from . import futures

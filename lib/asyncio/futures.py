@@ -11,7 +11,7 @@ import reprlib
 import sys
 import traceback
 
-from actualvim.lib.asyncio_inc import compat
+from ActualVim.lib.asyncio_inc import compat
 from . import events
 
 # States for Future.

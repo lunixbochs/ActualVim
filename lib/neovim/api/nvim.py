@@ -5,7 +5,7 @@ import sys
 
 from traceback import format_stack
 
-from actualvim.lib import msgpack
+from ActualVim.lib import msgpack
 
 from .buffer import Buffer
 from .common import (Remote, RemoteApi, RemoteMap, RemoteSequence,

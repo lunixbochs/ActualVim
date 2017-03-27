@@ -13,7 +13,7 @@ import warnings
 
 from . import base_events
 from . import base_subprocess
-from actualvim.lib.asyncio_inc import compat
+from ActualVim.lib.asyncio_inc import compat
 from . import constants
 from . import coroutines
 from . import events

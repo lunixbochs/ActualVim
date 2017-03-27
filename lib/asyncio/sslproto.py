@@ -6,7 +6,7 @@ except ImportError:  # pragma: no cover
     ssl = None
 
 from . import base_events
-from actualvim.lib.asyncio_inc import compat
+from ActualVim.lib.asyncio_inc import compat
 from . import protocols
 from . import transports
 from .log import logger
