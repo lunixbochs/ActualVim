@@ -572,7 +572,7 @@ class ActualVim:
         return completions
 
     def highlight(self, highlights=None):
-        if not settings.get('highlights'):
+        if not settings.get('highlights', False):
             return
 
         highlights = highlights or self.last_highlights
