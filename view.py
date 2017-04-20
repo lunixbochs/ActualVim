@@ -39,6 +39,8 @@ class ActualVim:
             return
 
         self.busy = threading.RLock()
+        self.update_needed = 0
+        self.update_lock = threading.RLock()
         self.keyq = queue.Queue()
 
         self.view = view
@@ -297,6 +299,7 @@ class ActualVim:
         tmp = {name: self.settings.get(name) for name in ('translate_tabs_to_spaces', 'tab_size')}
         tmp['read_only'] = self.view.is_read_only()
         if tmp != self.last_settings:
+            self.last_settings = tmp
             if tmp['translate_tabs_to_spaces']:
                 neo.vim.cmd('set expandtab ts={ts} shiftwidth={ts} softtabstop=0 smarttab'.format(ts=tmp['tab_size']))
             else:
@@ -305,7 +308,7 @@ class ActualVim:
                 neo.vim.cmd('set noma')
             else:
                 neo.vim.cmd('set ma')
-        neo.vim.status(force=True)
+            neo.vim.status(force=True)
 
     def settings_from_vim(self, et, ts):
         if et:
@@ -328,7 +331,7 @@ class ActualVim:
         text = self.view.substr(sublime.Region(0, self.view.size())).split('\n')
         self.buf[:] = text
         self.sel_to_vim(force)
-        self.vim_changes = neo.vim.buf_tick(self.buf)
+        self.vim_changes = neo.vim.status()['changedtick']
 
     def sync_from_vim(self, edit=None):
         if not neo._loaded: return
@@ -339,7 +342,7 @@ class ActualVim:
                 # only sync text content if vim buffer changed
                 # TODO: change to buf.vars['changedtick'] when neovim master (0.2.0?) is stable
                 # TODO: batch this with sel/status?
-                tick = neo.vim.buf_tick(self.buf)
+                tick = neo.vim.status()['changedtick']
                 if self.vim_changes is None or tick > self.vim_changes:
                     self.vim_changes = tick
                     # TODO: global UI change is GROSS, do deltas if possible
@@ -460,6 +463,13 @@ class ActualVim:
         else:
             self.view.erase_status('actual')
 
+    def update(self, edit=None):
+        with self.update_lock:
+            if self.update_needed:
+                self.update_needed = 0
+                self.sync_from_vim(edit=edit)
+                self.update_view()
+
     def press(self, key, edit=None):
         if not neo._loaded: return
         if self.buf is None:
@@ -467,16 +477,16 @@ class ActualVim:
 
         self.keyq.put(key)
         # process the key, then all buffered keys
+        self.busy.acquire()
         with self.busy:
             key = self.keyq.get()
-            _, ready = neo.vim.press(key)
+            with self.update_lock:
+                self.update_needed += 1
+            def onready():
+                sublime.set_timeout(self.update, 0)
+            _, ready = neo.vim.press(key, onready)
             if ready:
-                # TODO: trigger UI update on vim event, not here?
-                # well, if we don't figure it out before returning control
-                # to sublime, we get more events from sublime to figure out if we need to ignore
-                self.sync_from_vim(edit=edit)
-                # (trigger this somewhere else? vim mode change callback?)
-                self.update_view()
+                self.update(edit)
             return ready
 
     def close(self):

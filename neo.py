@@ -215,11 +215,12 @@ class Vim:
     def cmd(self, *args, **kwargs):
         return self.nv.command_output(*args, **kwargs)
 
-    def eval(self, *cmds):
-        if len(cmds) == 1:
-            return self.nv.eval(cmds[0])
+    def eval(self, *cmds, **kwargs):
+        if len(cmds) != 1:
+            cmd = '[' + (', '.join(cmds)) + ']'
         else:
-            return [self.nv.eval(c) for c in cmds]
+            cmd = cmds[0]
+        return self.nv.eval(cmd, **kwargs)
 
     def activate(self, av):
         if self.av != av:
@@ -242,9 +243,6 @@ class Vim:
         self.views.pop(buf.number, None)
         self.cmd('bw! {:d}'.format(buf.number))
 
-    def buf_tick(self, buf):
-        return int(self.eval('getbufvar({}, "changedtick")'.format(buf.number)))
-
     # neovim 'readiness' methods
     # if you don't use check/force_ready and control your input/cmd interleaving, you'll hang all the time
     def check_ready(self):
@@ -259,37 +257,9 @@ class Vim:
                 break
             time.sleep(0.0001)
         else:
-            self.nv.input('<esc>')
+            self.nv.input('<c-\\><c-n>')
 
-    # TODO: remove based on https://github.com/neovim/neovim/issues/6159
-    def _ask_async_ready(self):
-        # send a sync eval, then a series of async commands
-        # if we get the eval before the async commands finish, return True
-        state = {'done': False, 'ret': False, 'count': 0}
-        cv = threading.Condition()
-
-        def eval_cb(*a):
-            with cv:
-                state['done'] = True
-                state['ret'] = True
-                cv.notify()
-
-        def async1(*a):
-            with cv:
-                self.nv.request('nvim_get_api_info', cb=async2)
-
-        def async2(*a):
-            with cv:
-                state['done'] = True
-                cv.notify()
-
-        self.nv.request('vim_eval', '1', cb=eval_cb)
-        self.nv.request('nvim_get_api_info', cb=async1)
-        with cv:
-            cv.wait_for(lambda: state['done'], timeout=1)
-        return state['ret']
-
-    def press(self, key):
+    def press(self, key, onready=None):
         self.status_dirty = True
         mode_last = self.status_last.get('mode')
         was_ready = self.ready.acquire(False)
@@ -301,16 +271,23 @@ class Vim:
             # TODO: this is an assumption and could break in custom setups
             ready = True
         else:
-            if self.nvim_mode:
+            if self.nvim_mode and False:
                 _, blocked = self.nv.request('nvim_get_mode')
                 ready = not blocked
             else:
-                ready = self._ask_async_ready()
+                ready = False
+                def tmp():
+                    # need to acquire/release so ready lock doesn't get stuck
+                    self.ready.acquire(False)
+                    self.ready.release()
+                    onready()
+                self.status(cb=tmp)
+
         if ready:
             self.ready.release()
         return ret, ready
 
-    def status(self, update=True, force=False):
+    def status(self, update=True, force=False, cb=None):
         # TODO: use nvim_atomic? we need to get sel, buf, mode, everything at once if possible
         with self.status_lock:
             if self.status_dirty and update or force:
@@ -319,6 +296,7 @@ class Vim:
                     'modified': '&modified',
                     'expandtab': '&expandtab',
                     'ts': '&ts',
+                    'changedtick': 'getbufvar(bufnr("%"), "changedtick")',
 
                     'cline': 'line(".") - 1',
                     'ccol': 'col(".") - 1',
@@ -333,8 +311,17 @@ class Vim:
                     'screencol': 'screencol()',
                 }
                 expr = '[' + (', '.join(items.values())) + ']'
-                self.status_last = dict(zip(items.keys(), self.eval(expr)))
-                self.status_dirty = False
+                def update(*a):
+                    self.status_last = dict(zip(items.keys(), a[-1]))
+                    self.status_dirty = False
+                    if cb:
+                        # callbacks aren't decoded automatically
+                        self.status_last['mode'] = self.status_last['mode'].decode('utf8')
+                        cb()
+                if cb:
+                    self.eval(expr, cb=update)
+                else:
+                    update(self.eval(expr))
             return self.status_last
 
     def setpos(self, expr, line, col):
