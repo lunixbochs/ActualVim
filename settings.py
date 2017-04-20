@@ -6,6 +6,10 @@ DEFAULT_SETTINGS = {
         "completefunc": "ActualVimComplete",
     },
     "enabled": True,
+    "large_file_disable": {
+        "bytes": 52428800,
+        "lines": 50000,
+    },
     "neovim_path": "",
     "neovim_args": ["--cmd", "let g:actualvim = 1"],
     "indent_priority": "sublime",

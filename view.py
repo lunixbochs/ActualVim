@@ -78,6 +78,16 @@ class ActualVim:
         for k, v in s.items():
             view.settings().set(k, v)
 
+        lfd = settings.get('large_file_disable')
+        bytes = lfd.get('bytes', -1)
+        lines = lfd.get('lines', -1)
+        # TODO: view.lines() could be slow here
+        # hopefully view.size() shortcuts it
+        if (0 < bytes < view.size()) or (0 < lines < len(view.lines(sublime.Region(0, view.size())))):
+            fn = view.file_name() or view.name() or 'untitled'
+            print('ActualVim: disabling input for "{}" as size exceeds "large_file_disable" setting'.format(fn))
+            view.settings().set('actual_intercept', False)
+
     @classmethod
     def get(cls, view, create=True, exact=True):
         vid = view.id()
@@ -120,11 +130,12 @@ class ActualVim:
         # TODO: cursor isn't adjusted here, not sure why
         # (so if it's on a newline, it will stay there when caret switches)
         av = cls.get(sublime.active_window().active_view())
-        if av and av.actual:
-            av.activate()
-            av.sel_to_vim()
-            av.sel_from_vim()
-        av.update_view()
+        if av:
+            if av.actual:
+                av.activate()
+                av.sel_to_vim()
+                av.sel_from_vim()
+            av.update_view()
 
     @property
     def actual(self):
