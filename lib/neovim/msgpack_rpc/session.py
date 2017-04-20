@@ -98,7 +98,7 @@ class Session(object):
                                  .format(', '.join(kwargs.keys())))
 
             if self._is_running:
-                v = self._yielding_request(method, args)
+                v = self._yielding_request(method, args, timeout=kwargs.pop('timeout', 0.25))
             else:
                 v = self._blocking_request(method, args)
 
@@ -151,7 +151,7 @@ class Session(object):
         """Stop the event loop."""
         self._async_session.stop()
 
-    def _yielding_request(self, method, args):
+    def _yielding_request(self, method, args, timeout=None):
         q = Queue()
 
         def response_cb(err, rv):
@@ -159,7 +159,7 @@ class Session(object):
 
         self._async_session.request(method, args, response_cb)
         # FIXME timeout is to avoid hang
-        return q.get(timeout=1)
+        return q.get(timeout=timeout)
 
     def _blocking_request(self, method, args):
         result = []
