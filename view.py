@@ -92,9 +92,7 @@ class ActualVim:
         elif m and exact and m.view != view:
             # TODO: ...what is this solving?
             return None
-
-        if m:
-            return m
+        return m
 
     @classmethod
     def remove(cls, view):
