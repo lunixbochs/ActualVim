@@ -2,8 +2,11 @@
 
     { "caption": "Preferences: ActualVim Settings", "command": "open_file", "args": {"file": "${packages}/User/ActualVim.sublime-settings"} },
 
-    { "caption": "ActualVim: Enable", "command": "actual_enable" },
-    { "caption": "ActualVim: Disable", "command": "actual_disable" },
+    { "caption": "ActualVim: Enable (Global)", "command": "actual_enable" },
+    { "caption": "ActualVim: Disable (Global)", "command": "actual_disable" },
+
+    { "caption": "ActualVim: Enable (File)", "command": "actual_enable_view" },
+    { "caption": "ActualVim: Disable (File)", "command": "actual_disable_view" },
 
 /* technically still possible
     { "caption": "ActualVim: Monitor TTY", "command": "actual_monitor" },

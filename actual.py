@@ -24,6 +24,28 @@ class ActualDisable(sublime_plugin.ApplicationCommand):
         settings.disable()
 
 
+class ActualEnableView(sublime_plugin.TextCommand):
+    def is_enabled(self):
+        return settings.enabled() and not self.view.settings().get('actual_intercept')
+
+    def run(self, edit):
+        self.view.settings().set('actual_intercept', True)
+        v = ActualVim.get(self.view, exact=False, create=False)
+        if v:
+            v.update_view()
+
+
+class ActualDisableView(sublime_plugin.TextCommand):
+    def is_enabled(self):
+        return settings.enabled() and self.view.settings().get('actual_intercept', False)
+
+    def run(self, edit):
+        self.view.settings().set('actual_intercept', False)
+        v = ActualVim.get(self.view, exact=False, create=False)
+        if v:
+            v.update_view()
+
+
 class ActualKeypress(sublime_plugin.TextCommand):
     def is_enabled(self):
         v = ActualVim.get(self.view, exact=False, create=False)

@@ -2,8 +2,8 @@
 //    { "keys": ["ctrl+s"], "context": [{"key": "setting.actual_mode", "operand": true}],  "command": "actual_disable"},
 //    { "keys": ["ctrl+s"], "context": [{"key": "setting.actual_mode", "operand": false}], "command": "actual_enable"},
 
-    { "keys": ["escape"],       "args": {"key": "<esc>"},    "context": [{ "key": "setting.actual_mode", "operand": true }], "command": "actual_keypress" },
-    { "keys": ["shift+escape"], "args": {"key": "<esc>"},    "context": [{ "key": "setting.actual_mode", "operand": true }], "command": "actual_keypress" },
+    { "keys": ["escape"],       "args": {"key": "<esc>"},    "context": [{ "key": "setting.actual_intercept", "operand": true }], "command": "actual_keypress" },
+    { "keys": ["shift+escape"], "args": {"key": "<esc>"},    "context": [{ "key": "setting.actual_intercept", "operand": true }], "command": "actual_keypress" },
 
     // this is called for all inserted characters
     { "keys": ["<character>"], "context": [{ "key": "setting.actual_intercept", "operand": true }], "command": "actual_keypress" },

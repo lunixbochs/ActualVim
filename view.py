@@ -128,7 +128,7 @@ class ActualVim:
 
     @property
     def actual(self):
-        return neo._loaded and self.view and self.settings.get('actual_mode')
+        return neo._loaded and self.view and self.settings.get('actual_mode') and self.settings.get('actual_intercept')
 
     def sel_changed(self):
         new_sel = copy_sel(self.view)
