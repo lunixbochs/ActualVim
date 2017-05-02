@@ -4,10 +4,10 @@ ActualVim
 Everything you like about using Sublime Text 3, and everything you like about typing in vim.
 
 Actual uses an embedded [Neovim](https://neovim.io/) instance to accurately manipulate each Sublime Text buffer as though
-you were editing the text directly in vim, without breaking *any* Sublime Text features (aside from multiple selection for now).
+you were editing the text directly in vim, while the Sublime Text interface, features, and plugins continue to work (see end of README for caveats).
 
 This isn't a remote terminal UI like gvim and other vim frontends.
-Text modification and selections are bidirectionally synced. You can still use the entire native Sublime interface, including plugins.
+Text modification and selections are bidirectionally synced into the actual Sublime Text UI.
 
 Why?
 ----
@@ -49,13 +49,14 @@ You can run `ActualVim: Disable` or `ActualVim: Enable` via the command pallete 
 Caveats
 ----
 
+Currently broken Sublime Features:
+
+- Multiple Selection (#8).
+- Auto-popups while typing, like completion (#57) and snippet suggestions (#94).
+- Sublime's undo isn't coalesced properly while in vim mode (it's one character at a time: #44).
+
 Surfacing vim's UI (like the status bar) still needs some love, but I have some good ideas for making it look beautiful (better than your terminal)
 using Sublime's embedded HTML Phantom views.
 
-Multiple selection is a work-in-progress, because it needs vim plugin support.
-
-There are several minor bugs, and it may very rarely freeze due to the inability to tell if a command will block Neovim or not.
-Some bugs are waiting on Neovim upstream, but they have been very responsive thus far.
-
-Extremely large files might see a performance hit because the entire buffer is synced after each command. This needs to be optimized, but neovim's
-msgpack rpc is fairly fast so it hasn't been a bottleneck yet.
+Extremely large files will see a performance hit until neovim supports change deltas. The `large_file_disable` command mitigates this by disabling
+ActualVim for larger files (with configurable cutoff).
