@@ -162,11 +162,13 @@ class Vim:
         complete = r'''return rpcrequest({}, \"complete\", bufnr(\"%\"), a:findstart, a:base)'''.format(self.nv.channel_id)
         self.eval(r'''execute(":function! ActualVimComplete(findstart, base) \n {} \n endfunction")'''.format(complete))
 
+        self.nvim_mode = False
         try:
-            self.nv.request('nvim_get_mode')
-            self.nvim_mode = True
+            res = self.nv.request('nvim_get_mode')
+            if isinstance(res, dict):
+                self.nvim_mode = True
         except neovim.api.NvimError:
-            self.nvim_mode = False
+            pass
 
     def _event_loop(self):
         def on_notification(method, data):
@@ -302,8 +304,8 @@ class Vim:
             ready = True
         else:
             if self.nvim_mode:
-                _, blocked = self.nv.request('nvim_get_mode')
-                ready = not blocked
+                res = self.nv.request('nvim_get_mode') or {}
+                ready = not res.get('blocking', True)
             else:
                 ready = self._ask_async_ready()
         if ready:
