@@ -269,9 +269,6 @@ class Vim:
         ret = self.nv.input(key)
         if key in HALF_KEYS and was_ready and mode_last == 'n':
             ready = False
-        elif mode_last in INSERT_MODES and key in SIMPLE_KEYS:
-            # TODO: this is an assumption and could break in custom setups
-            ready = True
         else:
             if self.nvim_mode:
                 res = self.nv.request('nvim_get_mode') or {}
