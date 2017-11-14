@@ -26,10 +26,10 @@ class ActualDisable(sublime_plugin.ApplicationCommand):
 
 class ActualEnableView(sublime_plugin.TextCommand):
     def is_enabled(self):
-        return settings.enabled() and not self.view.settings().get('actual_intercept')
+        return settings.enabled() and not self.view.settings().get('av_input')
 
     def run(self, edit):
-        self.view.settings().set('actual_intercept', True)
+        self.view.settings().set('av_input', True)
         v = ActualVim.get(self.view, exact=False, create=False)
         if v:
             v.update_view()
@@ -37,10 +37,10 @@ class ActualEnableView(sublime_plugin.TextCommand):
 
 class ActualDisableView(sublime_plugin.TextCommand):
     def is_enabled(self):
-        return settings.enabled() and self.view.settings().get('actual_intercept', False)
+        return settings.enabled() and self.view.settings().get('av_input', False)
 
     def run(self, edit):
-        self.view.settings().set('actual_intercept', False)
+        self.view.settings().set('av_input', False)
         v = ActualVim.get(self.view, exact=False, create=False)
         if v:
             v.update_view()

@@ -72,7 +72,7 @@ class ActualVim:
 
         en = settings.enabled()
         s = {
-            'actual_intercept': en,
+            'av_input': en,
             'actual_mode': en,
             # it's most likely a buffer will start in command mode
             'inverse_caret_state': en,
@@ -88,7 +88,7 @@ class ActualVim:
         if (0 < bytes < view.size()) or (0 < lines < len(view.lines(sublime.Region(0, view.size())))):
             fn = view.file_name() or view.name() or 'untitled'
             print('ActualVim: disabling input for "{}" as size exceeds "large_file_disable" setting'.format(fn))
-            view.settings().set('actual_intercept', False)
+            view.settings().set('av_input', False)
 
     @classmethod
     def get(cls, view, create=True, exact=True):
@@ -126,7 +126,7 @@ class ActualVim:
     def enable(cls, enable=True):
         for av in _views.values():
             s = av.view.settings()
-            s.set('actual_intercept', enable)
+            s.set('av_input', enable)
             s.set('actual_mode', enable)
 
         # TODO: cursor isn't adjusted here, not sure why
@@ -141,7 +141,7 @@ class ActualVim:
 
     @property
     def actual(self):
-        return neo._loaded and self.view and self.settings.get('actual_mode') and self.settings.get('actual_intercept')
+        return neo._loaded and self.view and self.settings.get('actual_mode') and self.settings.get('av_input')
 
     def sel_changed(self):
         new_sel = copy_sel(self.view)

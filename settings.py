@@ -1,3 +1,4 @@
+import platform
 import sublime
 import sublime_plugin
 
@@ -41,6 +42,13 @@ DEFAULT_SETTINGS = {
         }
     }
 }
+
+if platform.system() != 'Darwin':
+    keys = {
+        'av:ctrl+n': True,
+        'av:ctrl+w': True,
+    }
+    DEFAULT_SETTINGS['settings']['vim']['modes']['normal'].update(keys)
 
 if not 'settings' in globals():
     settings = None
