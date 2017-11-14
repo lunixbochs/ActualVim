@@ -357,7 +357,7 @@ class ActualVim:
 
                 self.mark_changed()
                 self.sel_from_vim(edit=edit)
-                self.viewport_from_vim()
+                self.viewport_from_vim(queue=True)
                 self.status_from_vim()
 
         if edit:
@@ -422,30 +422,38 @@ class ActualVim:
         wview = {'topline': row + 1, 'leftcol': col + 1}
         neo.vim.eval('winrestview({})'.format(wview))
 
-    def viewport_from_vim(self):
+    def viewport_from_vim(self, queue=True):
         if not self.actual: return
-        status = neo.vim.status()
-        wview = status['wview']
-        lineoff = wview['topline'] - wview['topfill'] - 1
-        coloff = wview['leftcol'] - wview['skipcol'] - 1
-        tp = self.vim_text_point(lineoff, coloff)
-        view = self.view
-        pos = view.text_to_layout(tp)
-        left, top = view.viewport_position()
-        right, bot = view.viewport_extent()
-        right += left
-        bot += top
-        edge_cursor = False
-        for c in view.sel():
-            x, y = view.text_to_layout(c.b)
-            if (x < left or x + view.em_width() > right
-                    or y < top or y + view.line_height() > bot):
-                edge_cursor = True
+        def update():
+            status = neo.vim.status()
+            wview = status['wview']
+            lineoff = wview['topline'] - wview['topfill'] - 1
+            coloff = wview['leftcol'] - wview['skipcol'] - 1
+            tp = self.vim_text_point(lineoff, coloff)
+            view = self.view
+            pos = view.text_to_layout(tp)
+            left, top = view.viewport_position()
+            right, bot = view.viewport_extent()
+            right += left
+            bot += top
+            edge_check = False
+            for c in view.sel():
+                x, y = view.text_to_layout(c.b)
+                if (x < left or x + view.em_width() > right
+                        or y < top or y + view.line_height() > bot):
+                    edge_check = True
 
-        if (abs(left - pos[0]) >= view.em_width()
-                or abs(top - pos[1]) >= view.line_height()
-                or edge_cursor):
-            view.set_viewport_position(pos, False)
+            if coloff == 0 and left > 0:
+                edge_check = True
+
+            if (abs(left - pos[0]) >= view.em_width()
+                    or abs(top - pos[1]) >= view.line_height()
+                    or edge_check):
+                view.set_viewport_position(pos, False)
+        if queue:
+            sublime.set_timeout(update, 0)
+        else:
+            update()
 
     def sel_from_vim(self, edit=None):
         if not self.actual: return
@@ -482,7 +490,8 @@ class ActualVim:
                 self.update_needed = 0
                 self.sync_from_vim(edit=edit)
                 self.update_view()
-            self.viewport_from_vim()
+            else:
+                self.viewport_from_vim(queue=False)
 
     def press(self, key, edit=None):
         if not neo._loaded: return
@@ -500,8 +509,10 @@ class ActualVim:
                 sublime.set_timeout(self.update, 0)
 
             # syncing the viewport to vim here fixes the case where the user scrolled the view in sublime between keypresses
-            if neo.vim.check_ready():
-                self.viewport_to_vim()
+            if neo.vim.nvim_mode:
+                res = neo.vim.nv.request('nvim_get_mode') or {}
+                if not res.get('blocking', True):
+                    self.viewport_to_vim()
 
             _, ready = neo.vim.press(key, onready)
             if ready:
@@ -610,7 +621,7 @@ class ActualVim:
         return completions
 
     def highlight(self, highlights=None):
-        if not settings.get('highlights', False):
+        if not settings.get('highlights', True):
             return
 
         highlights = highlights or self.last_highlights
@@ -657,7 +668,7 @@ class ActualVim:
             regions.append(sublime.Region(a, b))
 
         if regions:
-            self.view.add_regions('actualvim_highlight', regions, 'error', '', sublime.DRAW_NO_OUTLINE)
+            self.view.add_regions('actualvim_highlight', regions, 'error', '', sublime.DRAW_NO_FILL)
         else:
             self.view.erase_regions('actualvim_highlight')
 
