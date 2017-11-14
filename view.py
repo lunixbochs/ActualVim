@@ -249,9 +249,12 @@ class ActualVim:
             combined.update(modes.get(name, {}))
             if mode in neo.VISUAL_MODES:
                 combined.update(modes.get('all visual', {}))
+                combined['av:mode:visuals'] = True
             elif mode in neo.INSERT_MODES:
                 combined.update(modes.get('all insert', {}))
+                combined['av:mode:inserts'] = True
 
+            combined['av:mode:'+name.replace(' ', '_')] = True
             base['settings'] = combined
             base['bell'] = combined.pop('bell')
         return base
