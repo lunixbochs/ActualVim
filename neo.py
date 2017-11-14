@@ -350,7 +350,7 @@ class Vim:
 
     def resize(self, width, height):
         w, h = int(width), int(height)
-        if w and h and w != self.width and h != self.height and self.check_ready():
+        if w and h and (w != self.width or h != self.height) and self.check_ready():
             self.width, self.height = w, h
             self.nv.ui_try_resize(w, h)
 
