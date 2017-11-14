@@ -54,6 +54,9 @@ def plugin_loaded():
                 r'C:\Program Files (x86)\Neovim',
                 r'C:\Neovim',
             ]
+            chocoroot = os.getenv('ChocolateyBinRoot')
+            if chocoroot: candidates.insert(0, os.path.join(chocoroot, r'\neovim\Neovim'))
+            else:         candidates.insert(0, r'C:\tools\neovim\Neovim')
             for c in candidates:
                 path = os.path.join(c, r'bin\nvim.exe')
                 if os.path.exists(path):
