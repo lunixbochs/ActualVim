@@ -147,7 +147,11 @@ class Vim:
         self._sem.acquire()
 
         # set up UI (before anything else so we can see errors)
-        options = {'popupmenu_external': True, 'rgb': True}
+        options = {
+            'ext_popupmenu': True,
+            'ext_cmdline': True,
+            'rgb': True,
+        }
         self.nv.ui_attach(self.width, self.height, options)
 
         # hidden buffers allow us to multiplex them
@@ -197,6 +201,9 @@ class Vim:
                         self.av.on_bell()
                     elif name in ('popupmenu_show', 'popupmenu_hide', 'popupmenu_select'):
                         self.av.on_popupmenu(name, args)
+                    elif name in ('cmdline_show', 'cmdline_pos', 'cmdline_special_char', 'cmdline_hide',
+                            'cmdline_block_show', 'cmdline_block_append', 'cmdline_block_hide'):
+                        self.av.on_cmdline(name, args)
                 vim.screen.redraw(data)
                 if self.av:
                     self.av.on_redraw(data, vim.screen)

@@ -44,6 +44,10 @@ class ActualVim:
         self.keyq = queue.Queue()
 
         self.view = view
+        self.cmd_panel = None
+        self.cmd_text = None
+        self.cmd_lock = threading.Lock()
+
         self.last_sel = None
         self.buf = None
         self.sub_changes = None
@@ -54,6 +58,7 @@ class ActualVim:
         self.last_size = None
         self.block = False
         self.block_hit = False
+        self.nosync = False
 
         # settings are marked here when applying mode-specific settings, and erased after
         self.tmpsettings = []
@@ -337,6 +342,8 @@ class ActualVim:
 
     def sync_from_vim(self, edit=None):
         if not self.actual: return
+        if self.nosync:
+            return
 
         def update(view, edit):
             with self.busy:
@@ -595,6 +602,51 @@ class ActualVim:
                 self.popup['selected'] = args[0][0]
             render(update=True)
 
+    def on_cmdline(self, cmd, args):
+        with self.cmd_lock:
+            window = self.view.window()
+            if cmd == 'cmdline_show':
+                content, pos, firstc, prompt, indent, level = args[0]
+                text = content[0][1]
+
+                def on_done(s):
+                    self.nosync = False
+                    with self.update_lock:
+                        self.update_needed += 1
+                    def onready():
+                        sublime.set_timeout(self.update, 0)
+                    _, ready = neo.vim.press('<cr>', onready)
+                    if ready: self.update()
+
+                def on_cancel():
+                    if self.cmd_panel:
+                        self.press('<esc>')
+
+                text = firstc + text
+                panel = self.cmd_panel
+                if panel:
+                    if text != self.cmd_text:
+                        with Edit(panel) as edit:
+                            edit.replace(sublime.Region(0, panel.size()), text)
+                    self.cmd_text = text
+                else:
+                    panel = window.show_input_panel(prompt, text, on_done, None, on_cancel)
+                    self.nosync = True
+                    s = panel.settings()
+                    s.set('av_input', True)
+                    s.set('actual_mode', True)
+                    _views[panel.id()] = self
+                    self.cmd_panel = panel
+            elif cmd == 'cmdline_hide':
+                self.nosync = False
+                panel = self.cmd_panel
+                if panel:
+                    self.cmd_panel = None
+                    self.cmd_text = None
+                    _views.pop(panel.id(), None)
+                    if window.active_panel() == 'input':
+                        window.run_command('hide_panel', {'cancel': True})
+
     def on_write(self):
         self.view.run_command('save')
 
@@ -678,6 +730,7 @@ class ActualVim:
         self.screen_changes = screen.changes
         hl = screen.highlights()
         sublime.set_timeout(lambda: self.highlight(hl), 0)
+        self.status_from_vim()
 
     def on_appcmd(self, cmd, args): sublime.run_command(cmd, args or {})
     def on_wincmd(self, cmd, args): self.view.window().run_command(cmd, args or {})

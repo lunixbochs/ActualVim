@@ -7,6 +7,7 @@ from .view import ActualVim
 from .edit import Edit
 from . import settings
 
+class ActualSkipCmd(sublime_plugin.TextCommand): pass
 
 class ActualEnable(sublime_plugin.ApplicationCommand):
     def is_enabled(self):
@@ -114,9 +115,19 @@ class ActualGlobalListener(sublime_plugin.EventListener):
     # to prevent inconsistent updates
     # then force a copy afterwards
     def on_text_command(self, view, name, args):
-        v = ActualVim.get(view, create=False)
+        v = ActualVim.get(view, exact=False, create=False)
         if not v:
             return
+
+        if name == 'paste' and view.window().active_panel() == 'input' and v.cmd_panel:
+            tmp = []
+            for c in sublime.get_clipboard():
+                if c == '\n':
+                    tmp.append('<cr>')
+                    break
+                tmp.append(c)
+            v.press(''.join(tmp))
+            return ('actual_skip_cmd', {})
 
         if name == 'drag_select':
             v.drag_select = args.get('by')
@@ -128,7 +139,7 @@ class ActualGlobalListener(sublime_plugin.EventListener):
         self.on_text_command(view, name, args)
 
     def on_post_text_command(self, view, name, args):
-        v = ActualVim.get(view, create=False)
+        v = ActualVim.get(view, exact=False, create=False)
         if not v:
             return
 
