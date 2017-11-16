@@ -679,4 +679,8 @@ class ActualVim:
         hl = screen.highlights()
         sublime.set_timeout(lambda: self.highlight(hl), 0)
 
+    def on_appcmd(self, cmd, args): sublime.run_command(cmd, args or {})
+    def on_wincmd(self, cmd, args): self.view.window().run_command(cmd, args or {})
+    def on_textcmd(self, cmd, args): self.view.run_command(cmd, args or {})
+
 ActualVim.reload_classes()

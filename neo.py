@@ -153,17 +153,27 @@ class Vim:
         # hidden buffers allow us to multiplex them
         self.nv.options['hidden'] = True
 
+        rpc_id = self.nv.channel_id
         # set up buffer read/write commands
-        cmd = 'autocmd {{}} * :call rpcrequest({}, "{{}}", expand("<abuf>"), expand("<afile>"))'.format(self.nv.channel_id)
+        cmd = 'autocmd {{}} * :call rpcrequest({}, "{{}}", expand("<abuf>"), expand("<afile>"))'.format(rpc_id)
         # self.cmd(cmd.format('BufWritePre', 'write_pre'))
         self.cmd(cmd.format('BufReadCmd', 'read'))
         self.cmd(cmd.format('BufWriteCmd', 'write'))
         self.cmd(cmd.format('BufEnter', 'enter'))
 
+        def funcdef(prototype, body):
+            print(r'''execute(":function! {} \n {} \n endfunction")'''.format(prototype, body))
+            self.eval(r'''execute(":function! {} \n {} \n endfunction")'''.format(prototype, body))
+
         # set up autocomplete from Sublime via completefunc (ctrl-x, ctrl-u)
-        # TODO: make this a setting, or at least the buf.options['completefunc'] part
-        complete = r'''return rpcrequest({}, \"complete\", bufnr(\"%\"), a:findstart, a:base)'''.format(self.nv.channel_id)
-        self.eval(r'''execute(":function! ActualVimComplete(findstart, base) \n {} \n endfunction")'''.format(complete))
+        # controlled via bufopts['completefunc'] in ActualVim settings
+        complete = r'''return rpcrequest({}, \"complete\", bufnr(\"%\"), a:findstart, a:base)'''.format(rpc_id)
+        funcdef('ActualVimComplete(findstart, base)', complete)
+
+        # FIXME: these just hang for now
+        funcdef('ActualVimWinCmd(name, args)',  r'rpcrequest({}, \"wincmd\",  bufnr(\"%\"), name, args)'.format(rpc_id))
+        funcdef('ActualVimTextCmd(name, args)', r'rpcrequest({}, \"textcmd\", bufnr(\"%\"), name, args)'.format(rpc_id))
+        funcdef('ActualVimAppCmd(name, args)',  r'rpcrequest({}, \"appcmd\",  bufnr(\"%\"), name, args)'.format(rpc_id))
 
         self.nvim_mode = False
         try:
@@ -211,6 +221,12 @@ class Vim:
                 pass
             elif method == 'complete':
                 return av.on_complete(args[0], args[1])
+            elif method == 'appcmd':
+                return av.on_appcmd(args[0], args[1])
+            elif method == 'wincmd':
+                return av.on_wincmd(args[0], args[1])
+            elif method == 'textcmd':
+                return av.on_textcmd(args[0], args[1])
 
         def on_setup():
             self._sem.release()
