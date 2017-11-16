@@ -11,6 +11,7 @@ DEFAULT_SETTINGS = {
         "bytes": 52428800,
         "lines": 50000,
     },
+    'smooth_scroll': False,
     "neovim_path": "",
     "neovim_args": ["--cmd", "let g:actualvim = 1"],
     "indent_priority": "sublime",

@@ -456,7 +456,7 @@ class ActualVim:
             if (abs(left - pos[0]) >= view.em_width()
                     or abs(top - pos[1]) >= view.line_height()
                     or edge_check):
-                view.set_viewport_position(pos, False)
+                view.set_viewport_position(pos, bool(settings.get('smooth_scroll')))
         if queue:
             sublime.set_timeout(update, 0)
         else:
