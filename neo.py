@@ -334,7 +334,7 @@ class Vim:
             if self.mode in VISUAL_MODES:
                 self.nv.input('<c-\\><c-n>')
             self.status_dirty = True
-            self.eval('cursor({:d}, {:d}, {:d})'.format(a[0], a[1], a[1]))
+            self.eval('cursor({:d}, {:d})'.format(a[0], a[1]))
         else:
             special = mode.startswith('<c-')
             if self.mode in VISUAL_MODES:
