@@ -196,8 +196,9 @@ class ActualVim:
             regions.append((a, b))
         elif name == 'visual block':
             # visual block mode
+            curswant = neo.vim.status()['wview']['curswant']
             left = min(sc, ec)
-            right = max(sc, ec) + 1
+            right = max(sc, ec, curswant) + 1
             top = min(sr, er)
             bot = max(sr, er)
             end = view.text_point(top, right)
