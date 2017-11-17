@@ -432,13 +432,14 @@ class ActualVim:
     def viewport_from_vim(self, queue=True):
         if not self.actual: return
         def update():
+            view = self.view
             status = neo.vim.status()
             wview = status['wview']
             lineoff = wview['topline'] - wview['topfill'] - 1
             coloff = wview['leftcol'] - wview['skipcol'] - 1
-            tp = self.vim_text_point(lineoff, coloff)
-            view = self.view
-            pos = view.text_to_layout(tp)
+            rowpoint = view.text_to_layout(self.vim_text_point(lineoff, 0))
+            colpoint = view.text_to_layout(self.vim_text_point(lineoff, coloff))
+            pos = colpoint[0], rowpoint[1]
             left, top = view.viewport_position()
             right, bot = view.viewport_extent()
             right += left
