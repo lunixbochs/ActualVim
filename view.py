@@ -64,7 +64,7 @@ class ActualVim:
         self.tmpsettings = []
 
         # track last settings we synced to vim, so we can update vim on change
-        self.last_settings = None
+        self.last_settings = {}
 
         # tracks our drag_select type
         self.drag_select = None
