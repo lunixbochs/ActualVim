@@ -298,29 +298,36 @@ class ActualVim:
             neo.vim.resize(width, height + 2)
             # update_view is called all the time, and asking vim for things is expensive
             # so vim's tab priority comes automatically during sel_from_vim()
-            if settings.get('indent_priority') == 'sublime':
+            if settings.get('settings_priority') == 'sublime':
                 self.settings_to_vim()
 
     def settings_to_vim(self):
         # only send this to vim if something changes
-        tmp = {name: self.settings.get(name) for name in ('translate_tabs_to_spaces', 'tab_size')}
+        tmp = {name: self.settings.get(name) for name in ('translate_tabs_to_spaces', 'tab_size', 'word_wrap')}
         tmp['read_only'] = self.view.is_read_only()
         if tmp != self.last_settings:
-            self.last_settings = tmp
-            if tmp['translate_tabs_to_spaces']:
+            if tmp.get('translate_tabs_to_spaces'):
                 neo.vim.cmd('set expandtab ts={ts} shiftwidth={ts} softtabstop=0 smarttab'.format(ts=tmp['tab_size']))
-            else:
-                neo.vim.cmd('set noexpandtab softtabstop=0')
+            else: neo.vim.cmd('set noexpandtab softtabstop=0')
+
             if tmp['read_only']:
                 neo.vim.cmd('set noma')
-            else:
-                neo.vim.cmd('set ma')
-            neo.vim.status(force=True)
+            else: neo.vim.cmd('set ma')
 
-    def settings_from_vim(self, et, ts):
+            if tmp.get('word_wrap') != self.last_settings.get('word_wrap'):
+                if tmp.get('word_wrap'):
+                    neo.vim.cmd('set wrap')
+                else: neo.vim.cmd('set nowrap')
+                self.viewport_to_vim()
+
+            neo.vim.status(force=True)
+            self.last_settings = tmp
+
+    def settings_from_vim(self, et, ts, wrap):
         if et:
             self.settings.set('translate_tabs_to_spaces', et)
         self.settings.set('tab_size', ts)
+        self.settings.set('word_wrap', wrap)
 
     def sync_to_vim(self, force=False):
         if not neo._loaded: return
@@ -470,8 +477,8 @@ class ActualVim:
         a = (status['vline'], status['vcol'])
         b = (status['cline'], status['ccol'])
 
-        if settings.get('indent_priority') == 'vim':
-            self.settings_from_vim(status['expandtab'], status['ts'])
+        if settings.get('settings_priority') == 'vim':
+            self.settings_from_vim(status['expandtab'], status['ts'], status['wrap'])
         new_sel = self.visual(status['mode'], a, b)
 
         def select(view, edit):

@@ -14,7 +14,7 @@ DEFAULT_SETTINGS = {
     'smooth_scroll': False,
     "neovim_path": "",
     "neovim_args": ["--cmd", "let g:actualvim = 1"],
-    "indent_priority": "sublime",
+    "settings_priority": "sublime",
     "settings": {
         "sublime": {
             "inverse_caret_state": False,
