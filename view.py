@@ -628,6 +628,7 @@ class ActualVim:
                     if text != self.cmd_text:
                         with Edit(panel) as edit:
                             edit.replace(sublime.Region(0, panel.size()), text)
+                            edit.reselect(pos + 1)
                     self.cmd_text = text
                 else:
                     panel = window.show_input_panel(prompt, text, on_done, None, on_cancel)
@@ -637,6 +638,8 @@ class ActualVim:
                     s.set('actual_mode', True)
                     _views[panel.id()] = self
                     self.cmd_panel = panel
+                    with Edit(panel) as edit:
+                        edit.reselect(pos + 1)
             elif cmd == 'cmdline_hide':
                 self.nosync = False
                 panel = self.cmd_panel
@@ -646,6 +649,12 @@ class ActualVim:
                     _views.pop(panel.id(), None)
                     if window.active_panel() == 'input':
                         window.run_command('hide_panel', {'cancel': True})
+            elif cmd == 'cmdline_pos':
+                pos, level = args[0]
+                panel = self.cmd_panel
+                if panel:
+                    with Edit(panel) as edit:
+                        edit.reselect(pos + 1)
 
     def on_write(self):
         self.view.run_command('save')
