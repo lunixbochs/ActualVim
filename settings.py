@@ -47,6 +47,7 @@ DEFAULT_SETTINGS = {
 if platform.system() != 'Darwin':
     keys = {
         'av:ctrl+n': True,
+        'av:ctrl+s': True,
         'av:ctrl+w': True,
     }
     DEFAULT_SETTINGS['settings']['vim']['modes']['normal'].update(keys)
