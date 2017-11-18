@@ -166,7 +166,6 @@ class Vim:
         self.cmd(cmd.format('BufEnter', 'enter'))
 
         def funcdef(prototype, body):
-            print(r'''execute(":function! {} \n {} \n endfunction")'''.format(prototype, body))
             self.eval(r'''execute(":function! {} \n {} \n endfunction")'''.format(prototype, body))
 
         # set up autocomplete from Sublime via completefunc (ctrl-x, ctrl-u)
