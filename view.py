@@ -278,6 +278,8 @@ class ActualVim:
                 self.set_path(path)
 
         if neo.vim.activate(self):
+            self.sel_to_vim()
+            self.viewport_to_vim()
             self.status_from_vim()
             self.update_view()
             self.highlight()
