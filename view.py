@@ -544,6 +544,7 @@ class ActualVim:
 
     def set_path(self, path):
         self.buf.name = path
+        neo.vim.cmd('filetype detect')
 
     # neovim event callbacks
     def on_bell(self):
