@@ -673,7 +673,9 @@ class ActualVim:
 
     def on_complete(self, findstart, base):
         def cur():
-            modified, et, ts, a, b = neo.vim.status()
+            status = neo.vim.status()
+            a = (status['vline'], status['vcol'])
+            b = (status['cline'], status['ccol'])
             sel = self.visual(neo.vim.mode, a, b)
             return sel[0].b
 
