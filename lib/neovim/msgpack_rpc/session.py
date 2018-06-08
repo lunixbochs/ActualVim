@@ -1,18 +1,8 @@
 """Synchronous msgpack-rpc session layer."""
-import threading
 from collections import deque
 from queue import Queue
-
-from traceback import format_exc
-import traceback
-
-# we don't have greenlet in st3
 import threading
-def spawn_thread(fn):
-    t = threading.Thread(target=fn)
-    t.daemon = True
-    t.start()
-
+import traceback
 
 class Session(object):
 
@@ -32,18 +22,30 @@ class Session(object):
         self._setup_exception = None
         self._lock = threading.RLock()
 
-    def threadsafe_call(self, fn, *args, **kwargs):
-        """Wrapper around `AsyncSession.threadsafe_call`."""
-        def handler():
+        self._async_queue = Queue()
+        thread = threading.Thread(target=self._async_worker)
+        thread.daemon = True
+        thread.start()
+
+    def _async_worker(self):
+        while True:
+            job = self._async_queue.get()
+            if job is None:
+                return
+            cb, args, kwargs = job
             try:
-                fn(*args, **kwargs)
+                cb(*args, **kwargs)
             except Exception:
                 traceback.print_exc()
 
-        def greenlet_wrapper():
-            spawn_thread(handler)
+    def async_dispatch(self, fn, *args, **kwargs):
+        self._async_queue.put((fn, args, kwargs))
 
-        self._async_session.threadsafe_call(greenlet_wrapper)
+    def threadsafe_call(self, fn, *args, **kwargs):
+        """Wrapper around `AsyncSession.threadsafe_call`."""
+        def async_wrapper():
+            self.async_dispatch(fn, *args, **kwargs)
+        self._async_session.threadsafe_call(async_wrapper)
 
     def next_message(self):
         """Block until a message(request or notification) is available.
@@ -129,7 +131,7 @@ class Session(object):
                 self.stop()
 
         if setup_cb:
-            spawn_thread(on_setup)
+            self.async_dispatch(on_setup)
 
         if self._setup_exception:
             error('Setup error: {}'.format(self._setup_exception))
@@ -195,10 +197,9 @@ class Session(object):
             except ErrorResponse as err:
                 response.send(err.args[0], error=True)
             except Exception as err:
-                response.send(repr(err) + "\n" + format_exc(5), error=True)
+                response.send(repr(err) + "\n" + traceback.format_exc(5), error=True)
 
-        # Create a new greenlet to handle the request
-        spawn_thread(handler)
+        self.async_dispatch(handler)
 
     def _on_notification(self, name, args):
         def handler():
@@ -207,7 +208,7 @@ class Session(object):
             except Exception:
                 pass
 
-        spawn_thread(handler)
+        self.async_dispatch(handler)
 
 
 class ErrorResponse(BaseException):

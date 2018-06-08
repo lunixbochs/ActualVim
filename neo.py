@@ -206,6 +206,16 @@ class Vim:
                 vim.screen.redraw(data)
                 if self.av:
                     self.av.on_redraw(data, vim.screen)
+            elif method == 'nvim_buf_lines_event':
+                buf, changedtick, start, end, lines, more = data
+                av = self.views.get(buf.number)
+                if av:
+                    av.on_nvim_lines(changedtick, start, end, lines, more)
+            elif method == 'nvim_buf_changedtick_event':
+                buf, changedtick = data
+                av = self.views.get(buf.number)
+                if av:
+                    av.on_nvim_changedtick(changedtick)
 
         def on_request(method, args):
             # TODO: what if I need to handle requests that don't start with bufid?

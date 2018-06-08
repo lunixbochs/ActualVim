@@ -3,6 +3,7 @@ import sublime
 import sublime_plugin
 import threading
 import traceback
+import time
 
 from . import neo
 from . import settings
@@ -59,6 +60,13 @@ class ActualVim:
         self.block = False
         self.block_hit = False
         self.nosync = False
+
+        self.live = False
+        self.last_event = 0
+        self.debouncing = False
+        self.debounce_cond = threading.Condition()
+        self.debounce_queue = []
+        self.debounce_tick = None
 
         # settings are marked here when applying mode-specific settings, and erased after
         self.tmpsettings = []
@@ -273,6 +281,11 @@ class ActualVim:
             self.sync_to_vim()
             # re-enable undo
             self.buf.options['undolevels'] = -123456
+            try:
+                self.buf.api.attach(True, {})
+                self.live = True
+            except Exception:
+                self.live = False
             path = self.view.file_name()
             if path:
                 self.set_path(path)
@@ -346,31 +359,65 @@ class ActualVim:
         self.mark_changed()
         neo.vim.force_ready()
         text = self.view.substr(sublime.Region(0, self.view.size())).split('\n')
-        self.buf[:] = text
+        if self.live:
+            bufid = self.buf.number
+            neo.vim.nv.request('nvim_call_atomic', [
+                ('nvim_buf_detach', [bufid]),
+                ('nvim_buf_set_lines', [bufid, 0, -1, False, text]),
+                ('nvim_buf_attach', [bufid, False, {}]),
+            ])
+        else:
+            self.buf[:] = text
         self.sel_to_vim(force)
         self.vim_changes = neo.vim.status()['changedtick']
 
-    def sync_from_vim(self, edit=None):
+    def sync_from_vim(self, edit=None, lines_event=None, resync=False):
         if not self.actual: return
         if self.nosync:
             return
+
+        if self.live and not lines_event:
+            tick = neo.vim.status()['changedtick']
+            # wait for the update event
+            if tick > self.vim_changes:
+                return
 
         def update(view, edit):
             with self.busy:
                 # only sync text content if vim buffer changed
                 # TODO: change to buf.vars['changedtick'] when neovim master (0.2.0?) is stable
                 # TODO: batch this with sel/status?
-                tick = neo.vim.status()['changedtick']
-                if self.vim_changes is None or tick > self.vim_changes:
-                    self.vim_changes = tick
-                    # TODO: global UI change is GROSS, do deltas if possible
-                    text = '\n'.join(self.buf[:])
-                    sel = view.sel()
-                    r = sel[0]
-                    for s in list(sel)[1:]:
-                        r = r.cover(s)
-                    view.replace(edit, sublime.Region(r.begin(), view.size()), text[r.begin():])
-                    view.replace(edit, sublime.Region(0, r.begin()), text[:r.begin()])
+                if self.live and not resync:
+                    if lines_event is not None:
+                        tick, start, end, lines = lines_event
+                        # TODO: do sub-line sync
+                        # TODO: write this in C
+                        if self.vim_changes is None or tick > self.vim_changes:
+                            self.vim_changes = tick
+                            # TODO: sublime apis can be slow if there are a large number of lines involved
+                            vstart = view.text_point(start, 0)
+                            text = ''.join(line+'\n' for line in lines)
+                            if end == start:
+                                view.insert(edit, vstart, text)
+                            else:
+                                vend = view.full_line(view.text_point(end - 1, 0)).b
+                                r = sublime.Region(vstart, vend)
+                                if lines:
+                                    view.replace(edit, r, text)
+                                else:
+                                    view.erase(edit, r)
+                else:
+                    tick = neo.vim.status()['changedtick']
+                    if self.vim_changes is None or tick > self.vim_changes:
+                        self.vim_changes = tick
+                        # TODO: global UI change is GROSS, do deltas if possible
+                        text = '\n'.join(self.buf[:])
+                        sel = view.sel()
+                        r = sel[0]
+                        for s in list(sel)[1:]:
+                            r = r.cover(s)
+                        view.replace(edit, sublime.Region(r.begin(), view.size()), text[r.begin():])
+                        view.replace(edit, sublime.Region(0, r.begin()), text[:r.begin()])
 
                 self.mark_changed()
                 self.sel_from_vim(edit=edit)
@@ -532,6 +579,8 @@ class ActualVim:
                 if not res.get('blocking', True):
                     self.viewport_to_vim()
 
+            # don't debounce user input
+            self.last_event = 0
             _, ready = neo.vim.press(key, onready)
             if ready:
                 self.update(edit)
@@ -541,6 +590,11 @@ class ActualVim:
         if neo._loaded:
             neo.vim.force_ready()
             if self.buf is not None:
+                if self.live:
+                    try:
+                        self.buf.api.detach()
+                    except Exception:
+                        pass
                 neo.vim.buf_close(self.buf)
         ActualVim.remove(self.view)
 
@@ -746,6 +800,52 @@ class ActualVim:
             self.view.add_regions('actualvim_highlight', regions, 'error', '', sublime.DRAW_NO_FILL)
         else:
             self.view.erase_regions('actualvim_highlight')
+
+    def on_nvim_lines_debounced(self, changedtick, start, end, lines, more):
+        if self.vim_changes is None or changedtick > self.vim_changes:
+            self.sync_from_vim(lines_event=(changedtick, start, end, lines))
+            self.last_event = time.time()
+
+    def nvim_line_debounce(self, timeout=0.05):
+        with self.debounce_cond:
+            self.debounce_cond.wait(timeout)
+            for key, args in self.debounce_queue:
+                self.on_nvim_lines_debounced(*args)
+
+            if self.debounce_tick is not None and self.debounce_tick > self.vim_changes:
+                self.vim_changes = self.debounce_tick
+
+            self.debouncing = False
+            self.debounce_tick = None
+            self.debounce_queue = []
+
+    def on_nvim_lines(self, changedtick, start, end, lines, more):
+        if self.vim_changes is not None and changedtick <= self.vim_changes:
+            return
+        args = (changedtick, start, end, lines, more)
+
+        threshold = 0.01
+        with self.debounce_cond:
+            key = (start, end)
+            if self.debouncing:
+                if self.debounce_queue and key == self.debounce_queue[-1][0]:
+                    self.debounce_queue[-1] = (key, args)
+                else:
+                    self.debounce_queue.append((key, args))
+            elif time.time() - self.last_event < threshold:
+                self.debouncing = True
+                self.debounce_queue.append((key, args))
+                threading.Thread(target=self.nvim_line_debounce, daemon=True).start()
+            else:
+                self.on_nvim_lines_debounced(*args)
+
+    def on_nvim_changedtick(self, changedtick):
+        with self.debounce_cond:
+            if self.debouncing:
+                self.debounce_tick = changedtick
+            else:
+                if changedtick > self.vim_changes:
+                    self.vim_changes = changedtick
 
     def on_redraw(self, data, screen):
         if screen.changes <= self.screen_changes:
