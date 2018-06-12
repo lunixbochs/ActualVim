@@ -4,7 +4,7 @@ ActualVim
 Everything you like about using Sublime Text 3, and everything you like about typing in vim.
 
 Actual uses an embedded [Neovim](https://neovim.io/) instance to accurately manipulate each Sublime Text buffer as though
-you were editing the text directly in vim, while the Sublime Text interface, features, and plugins continue to work (see end of README for caveats).
+you were editing the text directly in vim, while the Sublime Text interface, features, and plugins continue to work ([see end of README for caveats](#caveats)).
 
 This isn't a remote terminal UI like gvim and other vim frontends.
 Text modification and selections are bidirectionally synced into the actual Sublime Text UI.
