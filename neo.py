@@ -19,12 +19,6 @@ if not '_loaded' in globals():
 
 INSERT_MODES = ['i', 'R']
 VISUAL_MODES = ['V', 'v', '\x16']
-HALF_KEYS = ['d', 'y', 'c', '<lt>', '>', '=']
-SIMPLE_KEYS = [chr(c) for c in range(0x20, 0x7f)] + [
-    '<bs>', '<lt>',
-    '<left>', '<down>', '<right>', '<up>',
-    '<del>', '<enter>', '<tab>'
-]
 MODES = {
     'n': 'normal',
     'c': 'command',
@@ -302,20 +296,17 @@ class Vim:
         was_ready = self.ready.acquire(False)
 
         ret = self.nv.input(key)
-        if key in HALF_KEYS and was_ready and mode_last == 'n':
-            ready = False
+        if self.nvim_mode:
+            res = self.nv.request('nvim_get_mode') or {}
+            ready = not res.get('blocking', True)
         else:
-            if self.nvim_mode:
-                res = self.nv.request('nvim_get_mode') or {}
-                ready = not res.get('blocking', True)
-            else:
-                ready = False
-                def tmp():
-                    # need to acquire/release so ready lock doesn't get stuck
-                    self.ready.acquire(False)
-                    self.ready.release()
-                    onready()
-                self.status(cb=tmp)
+            ready = False
+            def tmp():
+                # need to acquire/release so ready lock doesn't get stuck
+                self.ready.acquire(False)
+                self.ready.release()
+                onready()
+            self.status(cb=tmp)
 
         if ready:
             self.ready.release()
