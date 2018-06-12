@@ -783,6 +783,7 @@ class ActualVim:
         lines = {
             (line + lineoff): self.buf[line + lineoff]
             for line in {hl.line for hl in highlights}
+            if line + lineoff < len(self.buf)
         }
         for hl in highlights:
             line = hl.line + lineoff

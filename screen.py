@@ -39,6 +39,9 @@ class Screen:
         # TODO: should resize clear?
         self.screen = [Cell() * w for i in range(h)]
         self.scroll_region = [0, self.h, 0, self.w]
+        # clamp cursor
+        self.x = min(self.x, w - 1)
+        self.y = min(self.y, h - 1)
 
     def clear(self):
         self.resize(self.w, self.h)
@@ -76,10 +79,16 @@ class Screen:
                 changed = True
                 for cs in args:
                     for c in cs:
-                        cell = self[self.x, self.y]
+                        cell = self.screen[self.y][self.x]
                         cell.c = c
                         cell.highlight = self.highlight
                         self.x += 1
+                        # TODO: line wrap is not specified, neither is wrapping off the end. semi-sane defaults.
+                        if self.x >= self.w:
+                            self.x = 0
+                            self.y += 1
+                            if self.y >= self.h:
+                                self.y = 0
             elif name == 'resize':
                 changed = True
                 self.resize(*args[0])
@@ -94,6 +103,7 @@ class Screen:
                 pass
             # else:
             #     print('unknown update cmd', name)
+
         if changed:
             self.changes += 1
 
