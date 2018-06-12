@@ -23,7 +23,7 @@ and bidirectional sync means Sublime Text and the native OS interface still work
 Usage
 ----
 
-This plugin requires [Neovim to be installed](https://neovim.io/), but should otherwise work on all Sublime Text 3 platforms (tested primarily on Windows and macOS).
+This plugin requires [Neovim to be installed](https://neovim.io/), but should otherwise work on all Sublime Text 3 platforms (tested primarily on Windows and macOS). Please use at least Neovim 0.2.2, but Neovim 0.3 or newer is highly recommended.
 
 Clone ActualVim to the path found in `Preferences -> Browse Packages...` or `sublime.packages_path()`. Usually found here:
 
