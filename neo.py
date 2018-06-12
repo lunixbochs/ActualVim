@@ -12,6 +12,8 @@ from .lib import util
 from . import settings
 from .screen import Screen
 
+# os.environ['NVIM_LOG_FILE'] = '/Users/aegis/.nvimlog'
+
 if not '_loaded' in globals():
     NEOVIM_PATH = None
     _loaded = False
@@ -168,9 +170,9 @@ class Vim:
         funcdef('ActualVimComplete(findstart, base)', complete)
 
         # FIXME: these just hang for now
-        funcdef('ActualVimWinCmd(name, args)',  r'rpcrequest({}, \"wincmd\",  bufnr(\"%\"), name, args)'.format(rpc_id))
-        funcdef('ActualVimTextCmd(name, args)', r'rpcrequest({}, \"textcmd\", bufnr(\"%\"), name, args)'.format(rpc_id))
-        funcdef('ActualVimAppCmd(name, args)',  r'rpcrequest({}, \"appcmd\",  bufnr(\"%\"), name, args)'.format(rpc_id))
+        funcdef('ActualVimWinCmd(name, args)',  r'call rpcnotify({}, \"wincmd\",  bufnr(\"%\"), a:name, a:args)'.format(rpc_id))
+        funcdef('ActualVimTextCmd(name, args)', r'call rpcnotify({}, \"textcmd\", bufnr(\"%\"), a:name, a:args)'.format(rpc_id))
+        funcdef('ActualVimAppCmd(name, args)',  r'call rpcnotify({}, \"appcmd\",  bufnr(\"%\"), a:name, a:args)'.format(rpc_id))
 
         self.nvim_mode = False
         try:
@@ -210,6 +212,18 @@ class Vim:
                 av = self.views.get(buf.number)
                 if av:
                     av.on_nvim_changedtick(changedtick)
+            elif method == 'appcmd':
+                av = self.views.get(data[0])
+                if av:
+                    av.on_appcmd(data[1], data[2])
+            elif method == 'wincmd':
+                av = self.views.get(data[0])
+                if av:
+                    av.on_wincmd(data[1], data[2])
+            elif method == 'textcmd':
+                av = self.views.get(data[0])
+                if av:
+                    av.on_textcmd(data[1], data[2])
 
         def on_request(method, args):
             # TODO: what if I need to handle requests that don't start with bufid?
@@ -231,12 +245,6 @@ class Vim:
                 pass
             elif method == 'complete':
                 return av.on_complete(args[0], args[1])
-            elif method == 'appcmd':
-                return av.on_appcmd(args[0], args[1])
-            elif method == 'wincmd':
-                return av.on_wincmd(args[0], args[1])
-            elif method == 'textcmd':
-                return av.on_textcmd(args[0], args[1])
 
         def on_setup():
             self._sem.release()
