@@ -153,6 +153,9 @@ class Vim:
         # hidden buffers allow us to multiplex them
         self.nv.options['hidden'] = True
 
+        # folds aren't implemented
+        self.cmd('set nofoldenable')
+
         rpc_id = self.nv.channel_id
         # set up buffer read/write commands
         cmd = 'autocmd {{}} * :call rpcrequest({}, "{{}}", expand("<abuf>"), expand("<afile>"))'.format(rpc_id)
