@@ -163,7 +163,16 @@ class ActualVim:
         view = self.view
         pos = view.text_point(row, 0)
         line = view.substr(sublime.Region(pos, pos + col))
-        vcol = len(line.encode('utf-8')[:col].decode('utf-8'))
+        encoded_line=line.encode('utf-8')
+        while(True):           #col is byte number of line-head to cursor, so line is long then we need
+            try:
+                line=encoded_line[:col].decode('utf-8') #get only line-head to cursor character
+                break
+            except:
+                col=col+1      #when use unicode character, it may half display in top-left
+
+        vcol = len(line)
+        return view.text_point(row, vcol)
         return view.text_point(row, vcol)
 
     def vim_rowcol(self, point):
