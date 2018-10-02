@@ -173,7 +173,6 @@ class ActualVim:
 
         vcol = len(line)
         return view.text_point(row, vcol)
-        return view.text_point(row, vcol)
 
     def vim_rowcol(self, point):
         view = self.view
