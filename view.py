@@ -583,7 +583,11 @@ class ActualVim:
 
             # syncing the viewport to vim here fixes the case where the user scrolled the view in sublime between keypresses
             if neo.vim.nvim_mode:
-                res = neo.vim.nv.request('nvim_get_mode') or {}
+                try:
+                    res = neo.vim.nv.request('nvim_get_mode') or {}
+                except Exception:
+                    res = {};
+
                 if not res.get('blocking', True):
                     self.viewport_to_vim()
 
@@ -689,7 +693,11 @@ class ActualVim:
                         self.update_needed += 1
                     def onready():
                         sublime.set_timeout(self.update, 0)
-                    _, ready = neo.vim.press('<cr>', onready)
+                        
+                    try:
+                        _, ready = neo.vim.press('<cr>', onready)
+                    except Exception:
+                        ready = True
                     if ready: self.update()
 
                 def on_cancel():
