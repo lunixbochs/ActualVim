@@ -306,7 +306,11 @@ class Vim:
         mode_last = self.status_last.get('mode')
         was_ready = self.ready.acquire(False)
 
-        ret = self.nv.input(key)
+        try:
+            ret = self.nv.input(key)
+        except Exception:
+            return 0, False
+
         if self.nvim_mode:
             res = self.nv.request('nvim_get_mode') or {}
             ready = not res.get('blocking', True)
